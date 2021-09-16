@@ -3,7 +3,6 @@ import pandas as pd
 import folium
 from folium.plugins import HeatMap
 import branca
-import shapely.geometry
 
 from os import listdir
 from os.path import isfile,join
@@ -96,6 +95,20 @@ def get_good_heatmap(specular_df):
 
     hmap.save('test.html')
 
+def get_revisit_info(specular_df):
+    '''
+        Returns array with the revisit info
+    '''
+    # Group the measurements into buckets
+    # Round lat and long and then use groupby to throw them all in similar buckets
+    specular_df['approx_LatSp'] = round(specular_df['LatSp'], 1)
+    specular_df['approx_LonSp'] = round(specular_df['LonSp'], 1)
+
+    grouped = specular_df.groupby(['approx_LatSp', 'approx_LonSp'])
+
+    buckets = pd.DataFrame(columns=['bucket_LatSp', 'bucket_LonSp', 'SpPoints'])
+
+
 
 if __name__ == "__main__":
     # This path assumes all files in the folder are for this test
@@ -105,4 +118,5 @@ if __name__ == "__main__":
     # data_test(specular_df)
     # generate_pass_heatmap(specular_df)
 
-    get_good_heatmap(specular_df)
+    # get_good_heatmap(specular_df)
+    get_revisit_info(specular_df)
