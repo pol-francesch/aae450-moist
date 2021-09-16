@@ -6,6 +6,7 @@ import branca
 
 from os import listdir
 from os.path import isfile,join
+from tqdm import tqdm
 
 from typing import List
 
@@ -80,7 +81,12 @@ def get_good_heatmap(specular_df):
     hmap = folium.Map(location=[42.5, -80], zoom_start=7, )
     hm_wide = HeatMap(list(zip(df.latitude.values, df.longitude.values, df.countSp.values)),
                       gradient={0.0: '#00ae53', 0.2: '#86dc76', 0.4: '#daf8aa',
-                                0.6: '#ffe6a4', 0.8: '#ff9a61', 1.0: '#ee0028'})
+                                0.6: '#ffe6a4', 0.8: '#ff9a61', 1.0: '#ee0028'},
+                                # min_opacity=0.5,
+                                # blur=50,
+                                # radius=
+                                
+                                )
     hmap.add_child(hm_wide)
 
     colormap = branca.colormap.StepColormap(
@@ -95,7 +101,7 @@ def get_good_heatmap(specular_df):
 
     hmap.save('test.html')
 
-def get_revisit_info(specular_df):
+def get_revisit_info(specular_df, sim_start, sim_end):
     '''
         Returns array with the revisit info
     '''
@@ -106,9 +112,37 @@ def get_revisit_info(specular_df):
 
     grouped = specular_df.groupby(['approx_LatSp', 'approx_LonSp'])
 
-    buckets = pd.DataFrame(columns=['bucket_LatSp', 'bucket_LonSp', 'SpPoints'])
+    buckets = pd.DataFrame(columns=['bucket_LatSp', 'bucket_LonSp', 'SpPoints', 'Revisits', 'MaxRevisit'])
 
+    for key in tqdm(list(grouped.groups.keys())):
+        group = grouped.get_group(key)
+        times = group['JulianDay'].tolist()
+        times = sorted(times + [sim_end, sim_start])
+        diff = [t - s for s, t in zip(times, times[1:])]
+        temp = {'bucket_LatSp': key[0], 'bucket_LonSp': key[1], 'SpPoints': group.to_dict(), 'Revisits': diff, 'MaxRevisit': max(diff)}
+        buckets = buckets.append(temp, ignore_index=True)
+    
+    return buckets
 
+def plot_revisit(buckets):
+    # Heat map
+    hmap = folium.Map(location=[42.5, -80], zoom_start=7, )
+    hm_wide = HeatMap(list(zip(buckets.bucket_LatSp.values, buckets.bucket_LonSp.values, buckets.MaxRevisit.values)),
+                      gradient={0.0: '#00ae53', 0.2: '#86dc76', 0.4: '#daf8aa',
+                                0.6: '#ffe6a4', 0.8: '#ff9a61', 1.0: '#ee0028'})
+    hmap.add_child(hm_wide)
+
+    # colormap = branca.colormap.StepColormap(
+    #            colors=['#00ae53', '#86dc76', '#daf8aa',
+    #                    '#ffe6a4', '#ff9a61', '#ee0028'],
+    #            vmin=0,
+    #            vmax=max_amt,
+    #            index=[0, 2, 4, 6, 8, 10])
+    # colormap = colormap.to_step(index=[0,2, 4, 6, 8, 10, 12])
+    # colormap.caption='Number of Specular Points'
+    # colormap.add_to(hmap)
+
+    hmap.save('test.html')
 
 if __name__ == "__main__":
     # This path assumes all files in the folder are for this test
@@ -117,6 +151,6 @@ if __name__ == "__main__":
     specular_df = get_files_pd(file_names)
     # data_test(specular_df)
     # generate_pass_heatmap(specular_df)
-
-    # get_good_heatmap(specular_df)
-    get_revisit_info(specular_df)
+    get_good_heatmap(specular_df)
+    # buckets = get_revisit_info(specular_df, sim_start=2459580.50000, sim_end=2459580.62500)
+    # plot_revisit(buckets)
