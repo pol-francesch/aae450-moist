@@ -6,7 +6,7 @@ from folium.plugins import HeatMap
 import branca
 from shapely.geometry import Polygon
 
-from os import listdir
+from os import listdir, walk
 from os.path import isfile,join
 from tqdm import tqdm
 
@@ -22,8 +22,18 @@ def get_all_files_dir(path_to_dir: str) -> List[str]:
         Inputs:
             path_to_dir (str): full path to directory
     '''
-    file_names = [join(path_to_dir,f) for f in listdir(path_to_dir) if isfile(join(path_to_dir, f))]
+    # file_names = [join(path_to_dir,f) for f in listdir(path_to_dir) if isfile(join(path_to_dir, f))]
     
+    file_names = []
+    for (dirpath, dirnames, filenames) in walk(path_to_dir):
+        temp = [join(dirpath, f) for f in filenames]
+        file_names.extend(temp)
+
+    # Remove .gitignore files
+    for name in file_names:
+        if 'gitignore' in name:
+            file_names.remove(name)
+
     return file_names
 
 def get_files_pd(file_names: List[str]) -> pd.DataFrame:
@@ -91,7 +101,7 @@ def get_specular_heatmap(specular_df):
                colors=['#00ae53', '#86dc76', '#daf8aa',
                        '#ffe6a4', '#ff9a61', '#ee0028'],
                vmin=0,
-               vmax=max_amt,
+               vmax=25,
                index=[0, 4, 8, 12, 16, 20])
     # colormap = colormap.to_step(index=[0,2, 4, 6, 8, 10, 12])
     colormap.caption='Number of Specular Points'
@@ -164,7 +174,7 @@ def plot_revisit_heatmap(buckets):
 
 if __name__ == "__main__":
     # This path assumes all files in the folder are for this test
-    path_to='/home/polfr/Downloads/sample/out/'
+    path_to='/home/polfr/Documents/dummy_data/09_17_2021/Unzipped/'
     file_names = get_all_files_dir(path_to)
     specular_df = get_files_pd(file_names)
     get_specular_heatmap(specular_df)
