@@ -1,15 +1,16 @@
 from branca import colormap
 import numpy as np
-from numpy.core.numeric import NaN
 import pandas as pd
 import folium
 from folium.plugins import HeatMap
 import branca
 from shapely.geometry import Polygon
 import geopandas as gpd
+import h5py
+import matplotlib.pyplot as plt
 
-from os import listdir, walk
-from os.path import isfile,join
+from os import walk
+from os.path import join
 from tqdm import tqdm
 
 from typing import List
@@ -67,6 +68,48 @@ def get_files_pd(file_names: List[str]) -> pd.DataFrame:
     df = df[df.LandMask == 1]
 
     return df
+
+def get_landmask(land_mask_dir):
+    land_mask_path = land_mask_dir+'Land_Mask_1km_EASE2_grid_150101_v004.h5'
+    lat_path       = land_mask_dir+'EZ2Lat_M01_002_vec.float32'
+    lon_path       = land_mask_dir+'EZ2Lon_M01_002_vec.float32'
+    land_mask = []
+    lat       = []
+    lon       = []
+
+    print('Getting land mask and latitude and longitude values...')
+    with h5py.File(land_mask_path, 'r') as f:
+        group_key = list(f.keys())[1]
+
+        # Get the data
+        land_mask = np.asarray(list(f[group_key]['mask']))
+
+    lat = np.fromfile(lat_path, dtype=np.float32)
+    lon = np.fromfile(lon_path, dtype=np.float32)
+
+    latlon = np.array(np.meshgrid(lat,lon)).T.reshape(-1,2)
+
+    return land_mask, latlon
+
+def get_land_latlon(land_mask_dir):
+    '''
+    Don't run this. It currently breaks my computer
+    '''
+    land_mask, latlon  = get_landmask(land_mask_dir)
+    latlon_mask = pd.DataFrame(data=latlon, columns=['lat', 'lon'])
+    latlon_mask['land_mask'] = land_mask.reshape(-1,1).astype(np.uint8)
+
+    print(latlon_mask.dtypes)
+
+    n = 200000
+    list_df = [latlon_mask[i:i+n] for i in range(0,latlon_mask.shape[0],n)]
+
+    for df in tqdm(list_df):
+        df = df[df['land_mask'] > 0]
+        # print(df.head())
+    
+    latlon_mask = pd.concat(list_df)
+    print(latlon_mask)
 
 def get_specular_heatmap(specular_df):
     ''''
@@ -129,7 +172,7 @@ def get_specular_heatmap(specular_df):
 
     hmap.save('test.html')
 
-def get_revisit_info(specular_df, sim_start, sim_end):
+def get_revisit_info(specular_df):
     '''
         Returns array with the revisit info
     '''
@@ -151,7 +194,7 @@ def get_revisit_info(specular_df, sim_start, sim_end):
     max_rev_area_df = specular_df[indeces]
 
     # Get rid of extra columns
-    # Any revisit that is less than 1 hour is remove. Typically this occurs because of a lack of samples (due to low sim time)
+    # Any revisit that is less than 1 hour is removed. Typically this occurs because of a lack of samples (due to low sim time)
     extra_cols = ['JulianDay', 'LatSp', 'LonSp', 'AltSp', 'LandMask']
     max_rev_area_df['revisit'].mask(max_rev_area_df['revisit'] < 0.04, other=np.nan, inplace=True)
     max_rev_area_df.drop(extra_cols, inplace=True, axis=1)
@@ -184,7 +227,7 @@ def plot_revisit_heatmap(max_rev_area_df):
 
     hmap.save('test_revisit_10day.html')
 
-def plot_revisit_heatmap_2(max_rev_area_df):
+def plot_revisit_map_2(max_rev_area_df):
     # First reduce the resolution of the polymap to avoid murdering my computer
     # Round lat and long and then use groupby to throw them all in similar buckets
     max_rev_area_df['approx_LatSp'] = round(max_rev_area_df['approx_LatSp'])
@@ -208,24 +251,35 @@ def plot_revisit_heatmap_2(max_rev_area_df):
     max_amt = max(max_rev_area_df.revisit.values)
     print(max_amt)
     print(max_rev_area_df)
-    colormap_dept = branca.colormap.StepColormap(
-        colors=['#00ae53', '#86dc76', '#daf8aa',
-            '#ffe6a4', '#ff9a61', '#ee0028'],
-        vmin=0,
-        vmax=max_amt,
-        index=[0, 2, 4, 6, 8, 10])
+    # colormap_dept = branca.colormap.StepColormap(
+    #     colors=['#0A2F51', '#0E4D64', '#137177', '#188977', '#1D9A6C',
+    #             '#39A96B', '#56B870', '#74C67A', '#99D492', '#BFE1B0', '#DEEDCF'],
+    #     vmin=0,
+    #     vmax=max_amt,
+    #     index=[0,1,2,3,4,5,6,7,8,9,10])
+    colormap_dept = branca.colormap.LinearColormap(colors=['green','yellow', 'red'], vmin=0, vmax=max_amt)
+
+    print('revisit 0: ', colormap_dept(0))
+    print('revisit 1: ', colormap_dept(1))
+    print('revisit 2: ', colormap_dept(2))
+    print('revisit 3: ', colormap_dept(3))
+    print('revisit 4: ', colormap_dept(4))
+    print('revisit 4.5: ', colormap_dept(4.5))
 
     for _, r in tqdm(max_rev_area_df.iterrows(), total=max_rev_area_df.shape[0]):
+        # print(r['revisit'])
         style_func = lambda x: {
             'fillColor': colormap_dept(r['revisit']),
             'color': '',
             'weight': 1.0,
             'fillOpacity': 0.5
         }
+        # print(style_func(r['revisit']))
         sim_geo = gpd.GeoSeries(r['geometry'])
         geo_j = sim_geo.to_json()
         geo_j = folium.GeoJson(data=geo_j, style_function=style_func, overlay=True, control=True)
         geo_j.add_to(map)
+        # break
     
     # Add legend
     colormap_dept.caption='Revisit Time'
@@ -233,13 +287,32 @@ def plot_revisit_heatmap_2(max_rev_area_df):
     # map.add_child(folium.LayerControl())
 
     # Save it
-    map.save('revisit_polymap_10day.html')
+    map.save('revisit_polymap_10day_test.html')
+
+    # return max_rev_area_df
+
+def plot_revisit_stats(max_rev_area_df):
+    '''
+        Get relevant revisit statistics
+    '''
+    # Remove NaNs
+    max_rev_area_df = max_rev_area_df[max_rev_area_df['revisit'].notnull()]
+
+    # Plot over all areas
+    print('Creating histogram')
+    print(max_rev_area_df)
+    ax = max_rev_area_df['revisit'].plot.hist(bins=50, alpha=0.5)
+    ax.plot()
+    plt.xlabel('Maximum Revisit Time (days)')
+    plt.title('Frequency Distribution of Maximum Revisit Time')
+    plt.show()
+
 
 if __name__ == "__main__":
-    # This path assumes all files in the folder are for this test
-    path_to='/home/polfr/Documents/dummy_data/09_17_2021/Unzipped/'
-    file_names = get_all_files_dir(path_to)
+    # This path assumes all files in the folder are for this test. It does remove .gitignore files though
+    path_to_output='/home/polfr/Documents/dummy_data/09_17_2021/Unzipped/'
+    file_names = get_all_files_dir(path_to_output)
     specular_df = get_files_pd(file_names)
-    # get_specular_heatmap(specular_df)
-    max_rev_area_df = get_revisit_info(specular_df, sim_start=2459580.50000, sim_end=2459580.62500)
-    plot_revisit_heatmap_2(max_rev_area_df)
+    max_rev_area_df = get_revisit_info(specular_df)
+    plot_revisit_map_2(max_rev_area_df)
+    # plot_revisit_stats(test)
