@@ -268,8 +268,8 @@ def plot_revisit_map_2(max_rev_area_df):
 
     for _, r in tqdm(max_rev_area_df.iterrows(), total=max_rev_area_df.shape[0]):
         # print(r['revisit'])
-        style_func = lambda x: {
-            'fillColor': colormap_dept(r['revisit']),
+        style_func = lambda x, revisit=r['revisit']: {
+            'fillColor': colormap_dept(revisit),
             'color': '',
             'weight': 1.0,
             'fillOpacity': 0.5
