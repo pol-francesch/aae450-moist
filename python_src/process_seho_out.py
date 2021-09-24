@@ -47,16 +47,24 @@ def get_files_pd(file_names: List[str]) -> pd.DataFrame:
             file_names (List): list of all the full filenames
     '''
     column_names   = ['JulianDay', 
-                      'LatRx', 'LonRx', 'AltRx',
-                      'TxID', 'LatTx', 'LonTx', 'AltTx',
-                      'LatSp', 'LonSp', 'AltSp',
-                      'LandMask', 'idk']
+                      'LatRx', 'LonRx', 'AltRx',                    # LLS Reciever
+                      'TxID',  'LatTx', 'LonTx', 'AltTx',           # Transmitter ID, LLS Transmitter
+                      'LatSp', 'LonSp', 'AltSp',                    # LLS Specular point
+                      'LosDAz', 'LosDEv', 'LosRAz', 'LosREv',       # Line of sight Direct signal (Azimuth, Elevation); Line of sight Reflected signal (Azimuth, Elevation)
+                      'Incidence', 'Elevation',                     # Incidence angle, Elevation angle
+                      'LandMask', 'idk']                            # Landmask (1:land, 0:water), extra unknown column
     unused_columns = ['LatRx', 'LonRx', 'AltRx',
-                      'TxID', 'LatTx', 'LonTx', 'AltTx', 'idk']
+                      'LatTx', 'LonTx', 'AltTx', 
+                      'LosDAz', 'LosDEv', 'LosRAz', 'LosREv',
+                      'Incidence', 'Elevation',
+                      'idk']
     list_dfs = []
 
     for file_name in file_names:
-        data = pd.read_csv(file_name, sep=" ", header=None)
+        try:
+            data = pd.read_csv(file_name, sep=" ", header=None)
+        except pd.errors.EmptyDataError:
+            continue
         data.columns = column_names
         data = data.drop(columns=unused_columns)
 
@@ -172,10 +180,29 @@ def get_specular_heatmap(specular_df):
 
     hmap.save('test.html')
 
-def get_revisit_info(specular_df):
+def get_revisit_info(all_specular_df, transmitters):
     '''
         Returns array with the revisit info
+
+        Inputs:
+            specular_df (Pandas DF): Dataframe which contains lat, lon specular points
+            transmitters (List of tuples): Contains which transmitters we are interested. If empty, consider all transmitters
     '''
+    # Remove transmitters that we don't want to consider
+    specular_df = pd.DataFrame()
+    if transmitters:
+        for trans_set in transmitters:
+            # Lower bound
+            specular_df = specular_df.append(all_specular_df[all_specular_df['TxID'] >= trans_set[0]])
+            # Upper bound
+            specular_df = specular_df.append(all_specular_df[all_specular_df['TxID'] <= trans_set[1]])
+    else:
+        # If transmitters is empty, we consider all transmitters
+        specular_df = all_specular_df
+
+    # Possible that a transmitter constellation is never used...
+    if specular_df.empty:
+        exit('This set of transmitters is never used to generate a specular point. Please select another set.')
     # Round lat and long and then use groupby to throw them all in similar buckets
     specular_df['approx_LatSp'] = round(specular_df['LatSp'],1)
     specular_df['approx_LonSp'] = round(specular_df['LonSp'],1)
@@ -227,7 +254,7 @@ def plot_revisit_heatmap(max_rev_area_df):
 
     hmap.save('test_revisit_10day.html')
 
-def plot_revisit_map_2(max_rev_area_df):
+def plot_revisit_map_2(max_rev_area_df, map_name='test'):
     # First reduce the resolution of the polymap to avoid murdering my computer
     # Round lat and long and then use groupby to throw them all in similar buckets
     max_rev_area_df['approx_LatSp'] = round(max_rev_area_df['approx_LatSp'])
@@ -249,8 +276,7 @@ def plot_revisit_map_2(max_rev_area_df):
                                                                              (row.approx_LonSp+0.5, row.approx_LatSp+0.5),
                                                                              (row.approx_LonSp-0.5, row.approx_LatSp+0.5)]), axis=1)
     max_amt = max(max_rev_area_df.revisit.values)
-    print(max_amt)
-    print(max_rev_area_df)
+    print('Max revisit value: ', max_amt)
     # colormap_dept = branca.colormap.StepColormap(
     #     colors=['#0A2F51', '#0E4D64', '#137177', '#188977', '#1D9A6C',
     #             '#39A96B', '#56B870', '#74C67A', '#99D492', '#BFE1B0', '#DEEDCF'],
@@ -258,13 +284,6 @@ def plot_revisit_map_2(max_rev_area_df):
     #     vmax=max_amt,
     #     index=[0,1,2,3,4,5,6,7,8,9,10])
     colormap_dept = branca.colormap.LinearColormap(colors=['green','yellow', 'red'], vmin=0, vmax=max_amt)
-
-    print('revisit 0: ', colormap_dept(0))
-    print('revisit 1: ', colormap_dept(1))
-    print('revisit 2: ', colormap_dept(2))
-    print('revisit 3: ', colormap_dept(3))
-    print('revisit 4: ', colormap_dept(4))
-    print('revisit 4.5: ', colormap_dept(4.5))
 
     for _, r in tqdm(max_rev_area_df.iterrows(), total=max_rev_area_df.shape[0]):
         # print(r['revisit'])
@@ -287,11 +306,11 @@ def plot_revisit_map_2(max_rev_area_df):
     # map.add_child(folium.LayerControl())
 
     # Save it
-    map.save('revisit_polymap_10day_test.html')
+    map.save(map_name+'.html')
 
     # return max_rev_area_df
 
-def plot_revisit_stats(max_rev_area_df):
+def plot_revisit_stats(max_rev_area_df, plot_title='Frequency Distribution of Maximum Revisit Time'):
     '''
         Get relevant revisit statistics
     '''
@@ -304,15 +323,17 @@ def plot_revisit_stats(max_rev_area_df):
     ax = max_rev_area_df['revisit'].plot.hist(bins=50, alpha=0.5)
     ax.plot()
     plt.xlabel('Maximum Revisit Time (days)')
-    plt.title('Frequency Distribution of Maximum Revisit Time')
+    plt.title(plot_title)
     plt.show()
 
 
 if __name__ == "__main__":
     # This path assumes all files in the folder are for this test. It does remove .gitignore files though
-    path_to_output='/home/polfr/Documents/dummy_data/09_17_2021/Unzipped/'
+    path_to_output='/home/polfr/Documents/dummy_data/09_24_2021/Unzipped/'
     file_names = get_all_files_dir(path_to_output)
     specular_df = get_files_pd(file_names)
-    max_rev_area_df = get_revisit_info(specular_df)
-    plot_revisit_map_2(max_rev_area_df)
-    # plot_revisit_stats(test)
+
+    transmitters = [(49,78)]
+    max_rev_area_df = get_revisit_info(specular_df, transmitters)
+    plot_revisit_map_2(max_rev_area_df, map_name='polymap_hw05_GPS_1day')
+    plot_revisit_stats(max_rev_area_df, plot_title='Frequency Distribution of Maximum Revisit Time - GPS')
