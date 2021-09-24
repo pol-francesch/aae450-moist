@@ -77,47 +77,18 @@ def get_files_pd(file_names: List[str]) -> pd.DataFrame:
 
     return df
 
-def get_landmask(land_mask_dir):
-    land_mask_path = land_mask_dir+'Land_Mask_1km_EASE2_grid_150101_v004.h5'
-    lat_path       = land_mask_dir+'EZ2Lat_M01_002_vec.float32'
-    lon_path       = land_mask_dir+'EZ2Lon_M01_002_vec.float32'
-    land_mask = []
-    lat       = []
-    lon       = []
-
-    print('Getting land mask and latitude and longitude values...')
-    with h5py.File(land_mask_path, 'r') as f:
-        group_key = list(f.keys())[1]
-
-        # Get the data
-        land_mask = np.asarray(list(f[group_key]['mask']))
-
-    lat = np.fromfile(lat_path, dtype=np.float32)
-    lon = np.fromfile(lon_path, dtype=np.float32)
-
-    latlon = np.array(np.meshgrid(lat,lon)).T.reshape(-1,2)
-
-    return land_mask, latlon
-
 def get_land_latlon(land_mask_dir):
     '''
-    Don't run this. It currently breaks my computer
+    From saved latlon h5 file, get latitude and longitude grid with 1km spacing that 
     '''
-    land_mask, latlon  = get_landmask(land_mask_dir)
-    latlon_mask = pd.DataFrame(data=latlon, columns=['lat', 'lon'])
-    latlon_mask['land_mask'] = land_mask.reshape(-1,1).astype(np.uint8)
+    file_name = land_mask_dir + 'land_latlon.h5'
+    latlon = []
 
-    print(latlon_mask.dtypes)
-
-    n = 200000
-    list_df = [latlon_mask[i:i+n] for i in range(0,latlon_mask.shape[0],n)]
-
-    for df in tqdm(list_df):
-        df = df[df['land_mask'] > 0]
-        # print(df.head())
-    
-    latlon_mask = pd.concat(list_df)
-    print(latlon_mask)
+    with h5py.File(file_name, 'r') as f:
+        group_key = list(f.keys())[0]
+        print(group_key)
+        print(list(f[group_key]))
+        print(list(f[group_key]['axis1']))
 
 def get_specular_heatmap(specular_df):
     ''''
@@ -191,11 +162,12 @@ def get_revisit_info(all_specular_df, transmitters):
     # Remove transmitters that we don't want to consider
     specular_df = pd.DataFrame()
     if transmitters:
+        print('Trimming off extra transmitters...')
         for trans_set in transmitters:
             # Lower bound
             specular_df = specular_df.append(all_specular_df[all_specular_df['TxID'] >= trans_set[0]])
             # Upper bound
-            specular_df = specular_df.append(all_specular_df[all_specular_df['TxID'] <= trans_set[1]])
+            specular_df = specular_df[specular_df['TxID'] <= trans_set[1]]
     else:
         # If transmitters is empty, we consider all transmitters
         specular_df = all_specular_df
@@ -203,6 +175,7 @@ def get_revisit_info(all_specular_df, transmitters):
     # Possible that a transmitter constellation is never used...
     if specular_df.empty:
         exit('This set of transmitters is never used to generate a specular point. Please select another set.')
+    
     # Round lat and long and then use groupby to throw them all in similar buckets
     specular_df['approx_LatSp'] = round(specular_df['LatSp'],1)
     specular_df['approx_LonSp'] = round(specular_df['LonSp'],1)
@@ -329,11 +302,13 @@ def plot_revisit_stats(max_rev_area_df, plot_title='Frequency Distribution of Ma
 
 if __name__ == "__main__":
     # This path assumes all files in the folder are for this test. It does remove .gitignore files though
-    path_to_output='/home/polfr/Documents/dummy_data/09_24_2021/Unzipped/'
+    path_to_output='/home/polfr/Documents/dummy_data/09_24_2021_10day/Unzipped/'
     file_names = get_all_files_dir(path_to_output)
     specular_df = get_files_pd(file_names)
 
     transmitters = [(49,78)]
     max_rev_area_df = get_revisit_info(specular_df, transmitters)
-    plot_revisit_map_2(max_rev_area_df, map_name='polymap_hw05_GPS_1day')
-    plot_revisit_stats(max_rev_area_df, plot_title='Frequency Distribution of Maximum Revisit Time - GPS')
+    plot_revisit_map_2(max_rev_area_df, map_name='polymap_hw05_GPS_10day')
+    plot_revisit_stats(max_rev_area_df, plot_title='Frequency Distribution of Maximum Revisit Time\n GPS - 10 days - 0.1$^\circ$x0.1$^\circ$')
+
+    # get_land_latlon('/home/polfr/Documents/dummy_data/data/')
