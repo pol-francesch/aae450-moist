@@ -177,6 +177,19 @@ def plot_revisit_stats(revisit_info):
     plt.show()
 
 
+def lla_to_cart(latitude, longitude):     
+    """
+    Convert from latitude and longitude values to cartesian vector 
+    for a specular point on spherical earth
+    """
+    cart = []
+    R = EARTH_RADIUS   
+    cart.append(R * np.cos(longitude) * np.cos(latitude))
+    cart.append(R * np.sin(longitude) * np.cos(latitude))
+    cart.append(R * np.sin(latitude))
+    return cart
+
+
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
