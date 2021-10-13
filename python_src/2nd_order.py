@@ -119,6 +119,8 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 temp_df['Lon']  = lon_sp
                 temp_df['trans_lat'] = trans[:,0]
                 temp_df['trans_lon'] = trans[:,1]
+                temp_df['rec_lat'] = rec_const[:,j*2:j*2+1]
+                temp_df['rec_lon'] = rec_const[:,j*2+1:j*2+2]
                 temp_df = temp_df.dropna()                  # if no specular point, it returns none
 
                 # Now rotate back 
@@ -126,8 +128,18 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 temp_df['Lat'] = (temp_df['Lat'] - np.pi/2 + temp_df['trans_lat'])*180/np.pi
                 temp_df['Lon'] = (temp_df['Lon'] - np.pi/2 + temp_df['trans_lon'])*180/np.pi
 
+                # Bring transmitter back to 180deg
+                temp_df['trans_lat'] = temp_df['trans_lat']*180/np.pi
+                temp_df['trans_lon'] =  temp_df['trans_lon']*180/np.pi
+
+                # Apply science requirements
+                # Get ECEF for rec, trans, spec
+                temp_df['trans_x'] = trans_sma[k] * np.cos(temp_df['trans_lon']) * np.cos(temp_df['trans_lat'])
+                temp_df['trans_y'] = trans_sma[k] * np.sin(temp_df['trans_lon']) * np.cos(temp_df['trans_lat'])
+                temp_df['trans_z'] = trans_sma[k] * np.sin(temp_df['trans_lat'])
+
                 # and get rid of transmitter because we don't need that anymore
-                temp_df = temp_df.drop(columns=['trans_lat', 'trans_lon'])
+                temp_df = temp_df.drop(columns=['trans_lat', 'trans_lon', 'rec_lat', 'rec_lon'])
 
                 # Transfer numpy array to list to get it to work well
                 temp_df['Lat'] = temp_df['Lat'].tolist()
@@ -193,7 +205,7 @@ def lla_to_cart(latitude, longitude):
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
-    filename = '/home/polfr/Documents/dummy_data/10_06_2021_GMAT/Unzipped/ReportFile1_TestforPol.txt'
+    filename = '/home/polfr/Documents/ReportFile1_TestforPol.txt'
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
     rec_sma = EARTH_RADIUS + 450
