@@ -215,7 +215,6 @@ def get_revisit_info(specular_df):
 
     return max_rev_area_df
 
-
 def plot_revisit_stats(revisit_info):
     print('Beginning plotting')
     # Remove NaNs
@@ -228,7 +227,6 @@ def plot_revisit_stats(revisit_info):
     plt.xlabel('Maximum Revisit Time (days)')
     plt.title('Maximum Revisit Frequency Distribution \n MUOS Constellation w/ 1 Satellite \n Simulation: 1s, 3 days, 1$^\circ$x1$^\circ$ Grid')
     plt.show()
-
 
 def lla_to_cart(latitude, longitude):     
     """
