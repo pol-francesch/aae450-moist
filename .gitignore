@@ -1,3 +1,5 @@
 *.html
 test.html
 *.png
+*.txt
+*.script
