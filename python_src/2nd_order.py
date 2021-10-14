@@ -133,6 +133,9 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 temp_df['trans_lat'] = temp_df['trans_lat']*180/np.pi
                 temp_df['trans_lon'] =  temp_df['trans_lon']*180/np.pi
 
+                # Enfore the type
+                temp_df = temp_df.astype('float64')
+
                 # Apply science requirements
                 # Get ECEF for rec, trans, spec
                 temp_df['trans_x'] = trans_sma[k] * np.cos(temp_df['trans_lon']) * np.cos(temp_df['trans_lat'])
@@ -144,21 +147,10 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 temp_df['rec_y'] = rec_sma * np.sin(temp_df['rec_lon']) * np.cos(temp_df['rec_lat'])
                 temp_df['rec_z'] = rec_sma * np.sin(temp_df['rec_lat'])
 
-                ##################ERROR BLOCK######################################################
-                #specular point r vector components
-                #these bottom three lines are the ones causing us issues
-                #I think it is ultimately rooting in the specular point Lon and Lat data retrieval
-               
-               #error test print statements
-                #print('...')
-                #print(lat_sp)
-                #print('...')
-                #print(lon_sp)
-
+                # specular point, r vector components
                 temp_df['spec_x'] = EARTH_RADIUS * np.cos(temp_df['Lon']) * np.cos(temp_df['Lat'])
                 temp_df['spec_y'] = EARTH_RADIUS * np.sin(temp_df['Lon']) * np.cos(temp_df['Lat'])
                 temp_df['spec_z'] = EARTH_RADIUS * np.sin(temp_df['Lat'])
-                ##############################################################
             
                 #find r_sr, r_rt
                 #r_sr
@@ -175,8 +167,7 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 #theta1 (assumption of r_s constant?)
                 temp_df['dot_s_sr'] = temp_df['r_srx']*temp_df['spec_x'] + temp_df['r_sry']*temp_df['spec_y'] + temp_df['r_srz']*temp_df['spec_z'] 
                 temp_df['mag_sr'] = np.sqrt(np.square(temp_df['trans_x']) + np.square(temp_df['trans_y']) + np.square(temp_df['trans_z']))
-                temp_df['mag_s'] = EARTH_RADIUS
-                temp_df['theta1'] = np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*temp_df['mag_s']))
+                temp_df['theta1'] = np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))
 
                 #theta2
                 temp_df['dot_r_sr'] = temp_df['r_srx']*temp_df['rec_x'] + temp_df['r_sry']*temp_df['rec_y'] + temp_df['r_srz']*temp_df['rec_z'] 
@@ -188,8 +179,6 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 temp_df['mag_rt'] = np.sqrt(np.square(temp_df['r_rtx']) + np.square(temp_df['r_rty']) + np.square(temp_df['r_rtz']))
                 temp_df['theta3'] = np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))
                 
-                print('If this prints our code is working') 
-
                 # and get rid of transmitter because we don't need that anymore
                 temp_df = temp_df.drop(columns=['trans_lat', 'trans_lon', 'rec_lat', 'rec_lon'])
 
@@ -253,14 +242,57 @@ def lla_to_cart(latitude, longitude):
     cart.append(R * np.sin(latitude))
     return cart
 
+def get_swe_100m(specular_df):
+    global EARTH_RADIUS
+
+    print('Beginning SWE 100m revisit calculations')
+    # Round lat and long to 1 deg
+    specular_df['approx_LatSp'] = round(specular_df['Lat'])
+    specular_df['approx_LonSp'] = round(specular_df['Lon'])
+
+    # Calculate time difference
+    # specular_df.sort_values(by=['approx_LatSp', 'approx_LonSp', 'Time'], inplace=True)
+    specular_df = specular_df.groupby(['approx_LatSp', 'approx_LonSp'])
+
+    for name, group in specular_df:
+        # print(group)
+        test = group.apply(lambda row: get_distance_lla(row['Lat'], row['Lon'], group['Lat'], group['Lon']), axis=1)
+        test = test.to_numpy().reshape((1,-1))
+
+        km_1 = test[test < 1.0]
+
+        if len(km_1) > 0:
+            print('For the following group: ' + str(name) + ' the following points exist: ' + str(km_1))
+
+def get_distance_lla(row_lat, row_long, group_lat, group_long):
+    def radians(degrees):
+        return degrees * np.pi / 180.0
+
+    global EARTH_RADIUS
+    # The math module contains a function named
+    # radians which converts from degrees to radians.
+    lon1 = radians(row_lat)
+    lon2 = radians(row_long)
+    lat1 = radians(group_lat)
+    lat2 = radians(group_long)
+
+    # Haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
+
+    c = 2 * np.arcsin(np.sqrt(a))
+
+    # calculate the result
+    return(c * EARTH_RADIUS)
 
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
-    #filename = '/home/polfr/Documents/ReportFile1_TestforPol.txt'
+    filename = '/home/polfr/Documents/ReportFile1_TestforPol.txt'
 
     #Simons file path
-    filename = '/Users/michael/Desktop/ReportFile1_TestforPol.txt'
+    # filename = '/Users/michael/Desktop/ReportFile1_TestforPol.txt'
 
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)

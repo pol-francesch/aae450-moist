@@ -3,3 +3,4 @@ test.html
 *.png
 *.txt
 *.script
+.vscode/
