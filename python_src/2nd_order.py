@@ -119,6 +119,8 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 temp_df['Lon']  = lon_sp
                 temp_df['trans_lat'] = trans[:,0]
                 temp_df['trans_lon'] = trans[:,1]
+                temp_df['rec_lat'] = rec_const[:,j*2:j*2+1]
+                temp_df['rec_lon'] = rec_const[:,j*2+1:j*2+2]
                 temp_df = temp_df.dropna()                  # if no specular point, it returns none
 
                 # Now rotate back 
@@ -126,8 +128,18 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 temp_df['Lat'] = (temp_df['Lat'] - np.pi/2 + temp_df['trans_lat'])*180/np.pi
                 temp_df['Lon'] = (temp_df['Lon'] - np.pi/2 + temp_df['trans_lon'])*180/np.pi
 
+                # Bring transmitter back to 180deg
+                temp_df['trans_lat'] = temp_df['trans_lat']*180/np.pi
+                temp_df['trans_lon'] =  temp_df['trans_lon']*180/np.pi
+
+                # Apply science requirements
+                # Get ECEF for rec, trans, spec
+                temp_df['trans_x'] = trans_sma[k] * np.cos(temp_df['trans_lon']) * np.cos(temp_df['trans_lat'])
+                temp_df['trans_y'] = trans_sma[k] * np.sin(temp_df['trans_lon']) * np.cos(temp_df['trans_lat'])
+                temp_df['trans_z'] = trans_sma[k] * np.sin(temp_df['trans_lat'])
+
                 # and get rid of transmitter because we don't need that anymore
-                temp_df = temp_df.drop(columns=['trans_lat', 'trans_lon'])
+                temp_df = temp_df.drop(columns=['trans_lat', 'trans_lon', 'rec_lat', 'rec_lon'])
 
                 # Transfer numpy array to list to get it to work well
                 temp_df['Lat'] = temp_df['Lat'].tolist()
@@ -176,6 +188,49 @@ def plot_revisit_stats(revisit_info):
     plt.title('Maximum Revisit Frequency Distribution \n MUOS Constellation w/ 1 Satellite \n Simulation: 1s, 3 days, 1$^\circ$x1$^\circ$ Grid')
     plt.show()
 
+def get_swe_100m(specular_df):
+    global EARTH_RADIUS
+
+    print('Beginning SWE 100m revisit calculations')
+    # Round lat and long to 1 deg
+    specular_df['approx_LatSp'] = round(specular_df['Lat'])
+    specular_df['approx_LonSp'] = round(specular_df['Lon'])
+
+    # Calculate time difference
+    # specular_df.sort_values(by=['approx_LatSp', 'approx_LonSp', 'Time'], inplace=True)
+    specular_df = specular_df.groupby(['approx_LatSp', 'approx_LonSp'])
+
+    for name, group in specular_df:
+        # print(group)
+        test = group.apply(lambda row: get_distance_lla(row['Lat'], row['Lon'], group['Lat'], group['Lon']), axis=1)
+        test = test.to_numpy().reshape((1,-1))
+        
+        km_1 = test[test < 1.0]
+
+        if len(km_1) > 0:
+            print('For the following group: ' + str(name) + ' the following points exist: ' + str(km_1))
+
+def get_distance_lla(row_lat, row_long, group_lat, group_long):
+    def radians(degrees):
+        return degrees * np.pi / 180.0
+    
+    global EARTH_RADIUS
+    # The math module contains a function named
+    # radians which converts from degrees to radians.
+    lon1 = radians(row_lat)
+    lon2 = radians(row_long)
+    lat1 = radians(group_lat)
+    lat2 = radians(group_long)
+      
+    # Haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
+ 
+    c = 2 * np.arcsin(np.sqrt(a))
+      
+    # calculate the result
+    return(c * EARTH_RADIUS)
 
 def lla_to_cart(latitude, longitude):     
     """
@@ -193,7 +248,7 @@ def lla_to_cart(latitude, longitude):
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
-    filename = '/home/polfr/Documents/dummy_data/10_06_2021_GMAT/Unzipped/ReportFile1_TestforPol.txt'
+    filename = '/home/polfr/Documents/ReportFile1_TestforPol.txt'
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
     rec_sma = EARTH_RADIUS + 450
@@ -207,5 +262,6 @@ if __name__ == '__main__':
 
     # Actually running code 
     specular_df = get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum)
-    revisit_info = get_revisit_info(specular_df)
-    plot_revisit_stats(revisit_info)
+    get_swe_100m(specular_df)
+    # revisit_info = get_revisit_info(specular_df)
+    # plot_revisit_stats(revisit_info)
