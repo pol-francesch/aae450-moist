@@ -36,7 +36,8 @@ def getTrueAnomaly(ecc, EA):
 if __name__ == '__main__':
     
     files = ['Inp_TLE_Galileo.txt','Inp_TLE_Glonass.txt','Inp_TLE_GPS.txt','Inp_TLE_Iridium.txt','Inp_TLE_MUOS.txt','Inp_TLE_ORBCOMM.txt','Inp_TLE_SWARM.txt']
-    days = 0.01
+    days = 15
+    step_size = 60
     
     time = days * 24 * 3600
     if os.path.exists("GMAT_Script.script"):
@@ -118,8 +119,8 @@ if __name__ == '__main__':
                 'GMAT DefaultProp.Type = RungeKutta89;\n'+
                 'GMAT DefaultProp.InitialStepSize = 1;\n'+
                 'GMAT DefaultProp.Accuracy = 1e-07;\n'+
-                'GMAT DefaultProp.MinStep = 1;\n'+
-                'GMAT DefaultProp.MaxStep = 1;\n'+
+                'GMAT DefaultProp.MinStep = '+str(step_size)+';\n'+
+                'GMAT DefaultProp.MaxStep = '+str(step_size)+';\n'+
                 'GMAT DefaultProp.MaxStepAttempts = 50;\n'+
                 'GMAT DefaultProp.StopIfAccuracyIsViolated = true;\n\n')  
 
@@ -140,7 +141,7 @@ if __name__ == '__main__':
                 'GMAT ReportFile_transmitters.ZeroFill = Off;\n'+
                 'GMAT ReportFile_transmitters.FixedWidth = true;\n'+
                 'GMAT ReportFile_transmitters.Delimiter = \' \';\n'+
-                'GMAT ReportFile_transmitters.ColumnWidth = 23;\n'+
+                'GMAT ReportFile_transmitters.ColumnWidth = 10;\n'+
                 'GMAT ReportFile_transmitters.WriteReport = true;\n\n')
         
         f.write('%----------------------------------------\n'+
