@@ -129,7 +129,7 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 temp_df['Lat'] = (temp_df['Lat'] - np.pi/2 + temp_df['trans_lat'])*180/np.pi
                 temp_df['Lon'] = (temp_df['Lon'] - np.pi/2 + temp_df['trans_lon'])*180/np.pi
 
-                # Bring transmitter back to 180deg
+                # Bring transmitter back to deg
                 temp_df['trans_lat'] = temp_df['trans_lat']*180/np.pi
                 temp_df['trans_lon'] =  temp_df['trans_lon']*180/np.pi
 
@@ -167,20 +167,25 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 #theta1 (assumption of r_s constant?)
                 temp_df['dot_s_sr'] = temp_df['r_srx']*temp_df['spec_x'] + temp_df['r_sry']*temp_df['spec_y'] + temp_df['r_srz']*temp_df['spec_z'] 
                 temp_df['mag_sr'] = np.sqrt(np.square(temp_df['trans_x']) + np.square(temp_df['trans_y']) + np.square(temp_df['trans_z']))
-                temp_df['theta1'] = np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))
+                temp_df['theta1'] = np.abs(np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))) * 180.0 / np.pi
 
                 #theta2
                 temp_df['dot_r_sr'] = temp_df['r_srx']*temp_df['rec_x'] + temp_df['r_sry']*temp_df['rec_y'] + temp_df['r_srz']*temp_df['rec_z'] 
                 temp_df['mag_r'] = np.sqrt(np.square(temp_df['rec_x']) + np.square(temp_df['rec_y']) + np.square(temp_df['rec_z']))
-                temp_df['theta2'] = np.arccos(temp_df['dot_r_sr']/(temp_df['mag_r']*temp_df['mag_sr']))
+                temp_df['theta2'] = np.abs(np.arccos(temp_df['dot_r_sr']/(temp_df['mag_r']*temp_df['mag_sr']))) * 180.0 / np.pi
 
                 #theta3
                 temp_df['dot_rt_r'] = temp_df['r_rtx']*temp_df['rec_x'] + temp_df['r_rty']*temp_df['rec_y'] + temp_df['r_rtz']*temp_df['rec_z'] 
                 temp_df['mag_rt'] = np.sqrt(np.square(temp_df['r_rtx']) + np.square(temp_df['r_rty']) + np.square(temp_df['r_rtz']))
-                temp_df['theta3'] = np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))
+                temp_df['theta3'] = np.abs(np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))) * 180.0 / np.pi
                 
-                # and get rid of transmitter because we don't need that anymore
-                temp_df = temp_df.drop(columns=['trans_lat', 'trans_lon', 'rec_lat', 'rec_lon'])
+                # Inclination angle is always < 60 deg (theta 1)
+                temp_df = temp_df[temp_df['theta1'] <= 60.0]
+
+                # Remove extra columns
+                keep    = ['Time', 'Lat', 'Lon', 'theta2', 'theta3']
+                extra   = [elem for elem in temp_df.columns.to_list() if elem not in keep]
+                temp_df = temp_df.drop(columns=extra)
 
                 # Transfer numpy array to list to get it to work well
                 temp_df['Lat'] = temp_df['Lat'].tolist()
@@ -217,7 +222,7 @@ def get_revisit_info(specular_df):
 
 def plot_revisit_stats(revisit_info):
     print('Beginning plotting')
-    # Remove NaNs
+    # Remove NaNs just to make sure
     max_rev_area_df = revisit_info[revisit_info['revisit'].notnull()]
 
     # Plot over all areas
@@ -284,6 +289,47 @@ def get_distance_lla(row_lat, row_long, group_lat, group_long):
     # calculate the result
     return(c * EARTH_RADIUS)
 
+def apply_science_angles(specular_df, science_req='SSM'):
+    if science_req == 'SSM' or science_req == 'FTS' or science_req == 'SWE_L':
+        # this one is L-band
+        specular_df = specular_df[specular_df['theta2'] < 20.0]
+        specular_df = specular_df[specular_df['theta3'] < 60.0]
+    elif science_req == 'RZSM' or science_req == 'SWE_P':
+        # this one is p/VHF-band
+        specular_df = specular_df[specular_df['theta2'] < 60.0]
+        specular_df = specular_df[specular_df['theta3'] < 60.0]
+    else:
+        exit('Not a known science requirement type')
+    
+    specular_df = specular_df.drop(columns=['theta2', 'theta3'])
+    return specular_df
+
+def get_revisit_stats(specular_df, science_req):
+    # Apply angle requirements
+    specular_df = apply_science_angles(specular_df, science_req)
+    # Get revisit
+    revisit_info = get_revisit_info(specular_df)
+
+    # Get revisit stats based on science requirements
+    if science_req == 'SSM' or science_req == 'RZSM':
+        exit('TODO: SSM & RZSM')
+    elif science_req == 'FTS':
+        exit('TODO: FTS')
+    elif science_req == 'SWE_L':
+        exit('TODO: SWE_L')
+    elif science_req == 'SWE_P':
+        # Apply latitudes
+        revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
+        
+        # Show results
+        print('99.9 Percentile of Maximum Revisit for SWE P-Band: ' + str(revisit_info['revisit'].quantile(0.99)))
+        
+        if not revisit_info.empty:
+            plot_revisit_stats(revisit_info)
+    else:
+        exit('Not a known science requirement type')
+
+
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
@@ -292,6 +338,8 @@ if __name__ == '__main__':
     #Simons file path
     # filename = '/Users/michael/Desktop/ReportFile1_TestforPol.txt'
 
+    # Science type
+    science_req = 'SWE_P'
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
     rec_sma = EARTH_RADIUS + 450
@@ -305,5 +353,4 @@ if __name__ == '__main__':
 
     # Actually running code 
     specular_df = get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum)
-    revisit_info = get_revisit_info(specular_df)
-    plot_revisit_stats(revisit_info)
+    get_revisit_stats(specular_df, science_req)
