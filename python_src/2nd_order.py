@@ -197,6 +197,7 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
 
 def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq):
     '''
+        This does the same as get_spec_rec but faster.        
         Gets the LL of specular points given the LL of transmitters and recievers
         LL of transmitters and recievers is in the filename
     '''
@@ -431,8 +432,8 @@ def get_distance_lla(row_lat, row_long, group_lat, group_long):
 def apply_science_angles(specular_df, science_req='SSM'):
     if science_req == 'SSM' or science_req == 'FTS' or science_req == 'SWE_L':
         # this one is L-band
-        specular_df = specular_df[specular_df['theta2'] < 20.0]
-        specular_df = specular_df[specular_df['theta3'] < 60.0]
+        specular_df = specular_df[specular_df['theta2'] < 21.0]
+        specular_df = specular_df[specular_df['theta3'] < 62.5]
     elif science_req == 'RZSM' or science_req == 'SWE_P':
         # this one is p/VHF-band
         specular_df = specular_df[specular_df['theta2'] < 60.0]
@@ -482,7 +483,6 @@ def get_revisit_stats(specular_df, science_req):
         print('99.9 Percentile of Maximum Revisit for SWE P-Band: ' + str(revisit_info['revisit'].quantile(0.99)))
     else:
         exit('Not a known science requirement type')
-
 
 if __name__ == '__main__':
     # Preliminary information

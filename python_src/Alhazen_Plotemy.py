@@ -3,7 +3,9 @@ from cmath import sqrt, sin, cos
 from math import acos, atan
 
 '''
-Source: https://github.com/WMiller256/Alhazen-Ptolemy
+	Source: https://github.com/WMiller256/Alhazen-Ptolemy
+
+	Miller, William J., et al. “Solving the Alhazen–Ptolemy Problem: Determining Specular Points on Spherical Surfaces for Radiative Transfer of Titan’s Seas.” The Planetary Science Journal, vol. 2, no. 2, 2021, p. 63., https://doi.org/10.3847/psj/abe4dd. 
 '''
 tolerance = 1e-9
 
