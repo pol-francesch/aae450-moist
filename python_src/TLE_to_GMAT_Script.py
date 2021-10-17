@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from sys import stdin
 import os
 
+from numpy.lib.function_base import average
+
 def MM2SMA(MM):
 	MU = 398600.4418
 	# ! Convert Mean motion from revs/day to rad/s
@@ -37,7 +39,7 @@ if __name__ == '__main__':
     
     files = ['Inp_TLE_Galileo.txt','Inp_TLE_Glonass.txt','Inp_TLE_GPS.txt','Inp_TLE_Iridium.txt','Inp_TLE_MUOS.txt','Inp_TLE_ORBCOMM.txt','Inp_TLE_SWARM.txt']
     days = 15
-    step_size = 60
+    step_size = 15
     
     time = days * 24 * 3600
     if os.path.exists("GMAT_Script.script"):
@@ -49,6 +51,15 @@ if __name__ == '__main__':
                 '%----------------------------------------\n\n')
     
     satNames = []
+    indices_for_pol = [None] * 319
+    total_count = 0
+    total_shells = 0
+
+    shell_number = []
+    shell_name = []
+    shell_sma = []
+    shell_num_sats = []
+
     for file in files:
         k = open('TLES/'+file)
         TLES = k.readlines()
@@ -61,7 +72,13 @@ if __name__ == '__main__':
             TLE_all.append(line)
         
         indices = [i for i in range(3, len(TLE_all) + 1) if i % 3 == 0]
-               
+
+        shells = 1
+        shellSMA = []
+        shellNumSats = []
+        SatNames = []
+        count = 0
+
         for i in indices:
             TLE = TLE_all[i-3:i][:]
             if TLE[1][:2] != '1 ' or checksum(TLE[1]) == False:
@@ -94,6 +111,29 @@ if __name__ == '__main__':
             TA = getTrueAnomaly(Ecc, radians(EA))
             Epoch = (datetime(EpochY-1,12,31) + timedelta(EpochD)).strftime("%d %b %Y %H:%M:%S.%f")[:-3]
 
+            if count == 0:
+                shellSMA.append(SMA)
+                shellNumSats.append(1)
+                SatNames.append(SatName)
+                total_shells += 1
+                indices_for_pol[total_count] = total_shells
+            else:
+                for i in range(shells):
+                    if abs(SMA - shellSMA[i]) < 30:
+                        shellNumSats[i] += 1
+                        shellSMA[i] = (shellSMA[i] + SMA) / 2.0
+                        indices_for_pol[total_count] = total_shells - (shells - i - 1)
+                        break
+                else:
+                    shells += 1
+                    total_shells += 1
+                    indices_for_pol[total_count] = total_shells
+                    shellSMA.append(SMA)
+                    shellNumSats.append(1)
+                    SatNames.append(SatName)
+            count += 1
+            total_count += 1
+
             with open('GMAT_Script.script', 'a') as f:
                 f.write("Create Spacecraft "+SatName+";\n" +
                     "GMAT "+SatName+".Id = '"+SATNum+"';\n" +
@@ -108,7 +148,35 @@ if __name__ == '__main__':
                     "GMAT "+SatName+".AOP = " + str(AoP) + ";\n" +
                     "GMAT "+SatName+".TA = "+str(TA)+";\n\n")
 
+        if shells == 1:
+            print('======================================')
+            print('Shell #: '+str(total_shells))
+            print('Name: '+SatNames[0])
+            print('SMA: '+str(shellSMA[0]))
+            print('Num Sats: '+str(shellNumSats[0])+'\n\n')
+            shell_number.append(total_shells)
+            shell_name.append(SatNames[0])
+            shell_sma.append(shellSMA[0])
+            shell_num_sats.append(shellNumSats[0])
+        else:
+            for i in range(shells):
+                print('======================================')
+                print('Shell #: '+str(total_shells - (shells - i - 1)))
+                print('Name: '+SatNames[i])
+                print('SMA: '+str(shellSMA[i]))
+                print('Num Sats: '+str(shellNumSats[i])+'\n\n')
+                shell_number.append(total_shells - (shells - i - 1))
+                shell_name.append(SatNames[i])
+                shell_sma.append(shellSMA[i])
+                shell_num_sats.append(shellNumSats[i])
+
         k.close()
+
+    print(shell_number)
+    print(shell_name)
+    print(shell_sma)
+    print(shell_num_sats)
+    print(indices_for_pol)
     
     with open('GMAT_Script.script', 'a') as f:
         f.write('%----------------------------------------\n'+
@@ -155,3 +223,10 @@ if __name__ == '__main__':
         for name in satNames:
             f.write(name+'.ElapsedSecs = '+str(time)+', ')
         f.write('};\n\n')
+
+
+        #TODO: print number of sats per constellation shell
+        #TODO: print sma for each shell
+        #TODO: remove headers from report file and don't ignore first line
+        #TODO: run GMAT at 15 second time steps
+        #TODO: set up code to create ideal transmitter master data frame once, then load that data frame forever
