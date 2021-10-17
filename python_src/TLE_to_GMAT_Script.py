@@ -204,7 +204,7 @@ if __name__ == '__main__':
             f.write(name + '.Earth.Latitude, '+
                     name + '.Earth.Longitude, ')
         f.write('};\n')
-        f.write('GMAT ReportFile_transmitters.WriteHeaders = true;\n'+
+        f.write('GMAT ReportFile_transmitters.WriteHeaders = false;\n'+
                 'GMAT ReportFile_transmitters.LeftJustify = On;\n'+
                 'GMAT ReportFile_transmitters.ZeroFill = Off;\n'+
                 'GMAT ReportFile_transmitters.FixedWidth = true;\n'+
@@ -225,8 +225,4 @@ if __name__ == '__main__':
         f.write('};\n\n')
 
 
-        #TODO: print number of sats per constellation shell
-        #TODO: print sma for each shell
-        #TODO: remove headers from report file and don't ignore first line
-        #TODO: run GMAT at 15 second time steps
         #TODO: set up code to create ideal transmitter master data frame once, then load that data frame forever
