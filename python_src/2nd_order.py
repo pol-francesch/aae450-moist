@@ -5,6 +5,7 @@ import numpy as np
 from Alhazen_Plotemy import branchdeducing_twofinite
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from scipy import interpolate
 
 EARTH_RADIUS = 6371.0
 
@@ -111,7 +112,7 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 # Get them goods
                 lat_sp = vfunc(obs=rec[:,0], c=c, b=b)
                 lon_sp = vfunc(obs=rec[:,1], c=c, b=b)
-                
+
                 # Temp DF
                 temp_df = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'trans_lat', 'trans_lon'])
                 temp_df['Time'] = time / 86400              # in days
@@ -132,15 +133,12 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 temp_df['trans_lat'] = temp_df['trans_lat']*180/np.pi
                 temp_df['trans_lon'] =  temp_df['trans_lon']*180/np.pi
 
-                # Enfore the type
-                temp_df = temp_df.astype('float64')
-
                 # Apply science requirements
                 # Get ECEF for rec, trans, spec
                 temp_df['trans_x'] = trans_sma[k] * np.cos(temp_df['trans_lon']) * np.cos(temp_df['trans_lat'])
                 temp_df['trans_y'] = trans_sma[k] * np.sin(temp_df['trans_lon']) * np.cos(temp_df['trans_lat'])
                 temp_df['trans_z'] = trans_sma[k] * np.sin(temp_df['trans_lat'])
-               
+                
                 #receiv. r vector components
                 temp_df['rec_x'] = rec_sma * np.cos(temp_df['rec_lon']) * np.cos(temp_df['rec_lat'])
                 temp_df['rec_y'] = rec_sma * np.sin(temp_df['rec_lon']) * np.cos(temp_df['rec_lat'])
@@ -400,7 +398,7 @@ def get_swe_100m(specular_df):
         # print(group)
         test = group.apply(lambda row: get_distance_lla(row['Lat'], row['Lon'], group['Lat'], group['Lon']), axis=1)
         test = test.to_numpy().reshape((1,-1))
-
+        
         km_1 = test[test < 1.0]
 
         if len(km_1) > 0:
@@ -409,7 +407,7 @@ def get_swe_100m(specular_df):
 def get_distance_lla(row_lat, row_long, group_lat, group_long):
     def radians(degrees):
         return degrees * np.pi / 180.0
-
+    
     global EARTH_RADIUS
     # The math module contains a function named
     # radians which converts from degrees to radians.
@@ -417,16 +415,36 @@ def get_distance_lla(row_lat, row_long, group_lat, group_long):
     lon2 = radians(row_long)
     lat1 = radians(group_lat)
     lat2 = radians(group_long)
-
+      
     # Haversine formula
     dlon = lon2 - lon1
     dlat = lat2 - lat1
     a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
-
+ 
     c = 2 * np.arcsin(np.sqrt(a))
-
+      
     # calculate the result
     return(c * EARTH_RADIUS)
+
+def interpolation(specular_df):
+
+    # Generate time list (in days) of interval 1 second
+    gran_time = np.linspace(0, 15, 15*24*3600)
+
+    time = round(specular_df['Time'])
+    lat = specular_df['Lat']
+    lon = specular_df['Lon']
+
+    lat_inter = interpolate.interp1d(time, lat, kind='linear')
+    lon_inter = interpolate.interp1d(time, lon, kind='linear')
+    
+    specular_df_granular = pd.DataFrame(columns=['Time', 'Lat', 'Lon'])
+
+    specular_df_granular['Time'] = gran_time
+    specular_df_granular['Lat'] = lat_inter(gran_time)
+    specular_df_granular['Lon'] = lon_inter(gran_time)
+
+    return specular_df_granular
 
 def apply_science_angles(specular_df, science_req='SSM'):
     if science_req == 'SSM' or science_req == 'FTS' or science_req == 'SWE_L':
@@ -482,7 +500,6 @@ def get_revisit_stats(specular_df, science_req):
         print('99.9 Percentile of Maximum Revisit for SWE P-Band: ' + str(revisit_info['revisit'].quantile(0.99)))
     else:
         exit('Not a known science requirement type')
-
 
 if __name__ == '__main__':
     # Preliminary information
