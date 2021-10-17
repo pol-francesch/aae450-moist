@@ -5,6 +5,7 @@ import numpy as np
 from Alhazen_Plotemy import branchdeducing_twofinite
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from scipy import interpolate
 
 EARTH_RADIUS = 6371.0
 
@@ -78,7 +79,6 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
     # Specular points dataframe
     spec_df = pd.DataFrame(columns=['Time', 'Lat', 'Lon'])
 
-
     # Vectorize the function
     vfunc = np.vectorize(branchdeducing_twofinite)
 
@@ -112,7 +112,7 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 # Get them goods
                 lat_sp = vfunc(obs=rec[:,0], c=c, b=b)
                 lon_sp = vfunc(obs=rec[:,1], c=c, b=b)
-                
+
                 # Temp DF
                 temp_df = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'trans_lat', 'trans_lon'])
                 temp_df['Time'] = time / 86400              # in days
@@ -133,52 +133,12 @@ def get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum):
                 temp_df['trans_lat'] = temp_df['trans_lat']*180/np.pi
                 temp_df['trans_lon'] =  temp_df['trans_lon']*180/np.pi
 
-                # Enfore the type
-                temp_df = temp_df.astype('float64')
-
                 # Apply science requirements
                 # Get ECEF for rec, trans, spec
                 temp_df['trans_x'] = trans_sma[k] * np.cos(temp_df['trans_lon']) * np.cos(temp_df['trans_lat'])
                 temp_df['trans_y'] = trans_sma[k] * np.sin(temp_df['trans_lon']) * np.cos(temp_df['trans_lat'])
                 temp_df['trans_z'] = trans_sma[k] * np.sin(temp_df['trans_lat'])
-               
-                #receiv. r vector components
-                temp_df['rec_x'] = rec_sma * np.cos(temp_df['rec_lon']) * np.cos(temp_df['rec_lat'])
-                temp_df['rec_y'] = rec_sma * np.sin(temp_df['rec_lon']) * np.cos(temp_df['rec_lat'])
-                temp_df['rec_z'] = rec_sma * np.sin(temp_df['rec_lat'])
 
-                # specular point, r vector components
-                temp_df['spec_x'] = EARTH_RADIUS * np.cos(temp_df['Lon']) * np.cos(temp_df['Lat'])
-                temp_df['spec_y'] = EARTH_RADIUS * np.sin(temp_df['Lon']) * np.cos(temp_df['Lat'])
-                temp_df['spec_z'] = EARTH_RADIUS * np.sin(temp_df['Lat'])
-            
-                #find r_sr, r_rt
-                #r_sr
-                temp_df['r_srx'] = temp_df['rec_x'] - temp_df['spec_x']
-                temp_df['r_sry'] = temp_df['rec_y'] - temp_df['spec_y']
-                temp_df['r_srz'] = temp_df['rec_z'] - temp_df['spec_z']
-
-                #r_rt
-                temp_df['r_rtx'] = temp_df['trans_x'] - temp_df['rec_x']
-                temp_df['r_rty'] = temp_df['trans_y'] - temp_df['rec_y']
-                temp_df['r_rtz'] = temp_df['trans_z'] - temp_df['rec_z']
-
-                #find thetas (for all names to the left of '=', coefficient 'r' left out, ex: r_rt made to be rt)
-                #theta1 (assumption of r_s constant?)
-                temp_df['dot_s_sr'] = temp_df['r_srx']*temp_df['spec_x'] + temp_df['r_sry']*temp_df['spec_y'] + temp_df['r_srz']*temp_df['spec_z'] 
-                temp_df['mag_sr'] = np.sqrt(np.square(temp_df['trans_x']) + np.square(temp_df['trans_y']) + np.square(temp_df['trans_z']))
-                temp_df['theta1'] = np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))
-
-                #theta2
-                temp_df['dot_r_sr'] = temp_df['r_srx']*temp_df['rec_x'] + temp_df['r_sry']*temp_df['rec_y'] + temp_df['r_srz']*temp_df['rec_z'] 
-                temp_df['mag_r'] = np.sqrt(np.square(temp_df['rec_x']) + np.square(temp_df['rec_y']) + np.square(temp_df['rec_z']))
-                temp_df['theta2'] = np.arccos(temp_df['dot_r_sr']/(temp_df['mag_r']*temp_df['mag_sr']))
-
-                #theta3
-                temp_df['dot_rt_r'] = temp_df['r_rtx']*temp_df['rec_x'] + temp_df['r_rty']*temp_df['rec_y'] + temp_df['r_rtz']*temp_df['rec_z'] 
-                temp_df['mag_rt'] = np.sqrt(np.square(temp_df['r_rtx']) + np.square(temp_df['r_rty']) + np.square(temp_df['r_rtz']))
-                temp_df['theta3'] = np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))
-                
                 # and get rid of transmitter because we don't need that anymore
                 temp_df = temp_df.drop(columns=['trans_lat', 'trans_lon', 'rec_lat', 'rec_lon'])
 
@@ -229,19 +189,6 @@ def plot_revisit_stats(revisit_info):
     plt.title('Maximum Revisit Frequency Distribution \n MUOS Constellation w/ 1 Satellite \n Simulation: 1s, 3 days, 1$^\circ$x1$^\circ$ Grid')
     plt.show()
 
-
-def lla_to_cart(latitude, longitude):     
-    """
-    Convert from latitude and longitude values to cartesian vector 
-    for a specular point on spherical earth
-    """
-    cart = []
-    R = EARTH_RADIUS   
-    cart.append(R * np.cos(longitude) * np.cos(latitude))
-    cart.append(R * np.sin(longitude) * np.cos(latitude))
-    cart.append(R * np.sin(latitude))
-    return cart
-
 def get_swe_100m(specular_df):
     global EARTH_RADIUS
 
@@ -258,7 +205,7 @@ def get_swe_100m(specular_df):
         # print(group)
         test = group.apply(lambda row: get_distance_lla(row['Lat'], row['Lon'], group['Lat'], group['Lon']), axis=1)
         test = test.to_numpy().reshape((1,-1))
-
+        
         km_1 = test[test < 1.0]
 
         if len(km_1) > 0:
@@ -267,7 +214,7 @@ def get_swe_100m(specular_df):
 def get_distance_lla(row_lat, row_long, group_lat, group_long):
     def radians(degrees):
         return degrees * np.pi / 180.0
-
+    
     global EARTH_RADIUS
     # The math module contains a function named
     # radians which converts from degrees to radians.
@@ -275,25 +222,53 @@ def get_distance_lla(row_lat, row_long, group_lat, group_long):
     lon2 = radians(row_long)
     lat1 = radians(group_lat)
     lat2 = radians(group_long)
-
+      
     # Haversine formula
     dlon = lon2 - lon1
     dlat = lat2 - lat1
     a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
-
+ 
     c = 2 * np.arcsin(np.sqrt(a))
-
+      
     # calculate the result
     return(c * EARTH_RADIUS)
+
+def lla_to_cart(latitude, longitude):     
+    """
+    Convert from latitude and longitude values to cartesian vector 
+    for a specular point on spherical earth
+    """
+    cart = []
+    R = EARTH_RADIUS   
+    cart.append(R * np.cos(longitude) * np.cos(latitude))
+    cart.append(R * np.sin(longitude) * np.cos(latitude))
+    cart.append(R * np.sin(latitude))
+    return cart
+
+def interpolation(specular_df):
+
+    # Generate time list (in days) of interval 1 second
+    gran_time = np.linspace(0, 15, 15*24*3600)
+
+    time = round(specular_df['Time'])
+    lat = specular_df['Lat']
+    lon = specular_df['Lon']
+
+    lat_inter = interpolate.interp1d(time, lat, kind='linear')
+    lon_inter = interpolate.interp1d(time, lon, kind='linear')
+    
+    specular_df_granular = pd.DataFrame(columns=['Time', 'Lat', 'Lon'])
+
+    specular_df_granular['Time'] = gran_time
+    specular_df_granular['Lat'] = lat_inter(gran_time)
+    specular_df_granular['Lon'] = lon_inter(gran_time)
+
+    return specular_df_granular
 
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
     filename = '/home/polfr/Documents/ReportFile1_TestforPol.txt'
-
-    #Simons file path
-    # filename = '/Users/michael/Desktop/ReportFile1_TestforPol.txt'
-
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
     rec_sma = EARTH_RADIUS + 450
@@ -307,5 +282,9 @@ if __name__ == '__main__':
 
     # Actually running code 
     specular_df = get_spec_rec(filename, rec_sma, trans_sma, rec_satNum, trans_satNum)
-    revisit_info = get_revisit_info(specular_df)
-    plot_revisit_stats(revisit_info)
+
+    granular_specular_df = interpolation(specular_df)
+
+    get_swe_100m(specular_df)
+    # revisit_info = get_revisit_info(specular_df)
+    # plot_revisit_stats(revisit_info)
