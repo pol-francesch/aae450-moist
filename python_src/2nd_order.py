@@ -5,7 +5,6 @@ import numpy as np
 from Alhazen_Plotemy import branchdeducing_twofinite
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from scipy import interpolate
 
 EARTH_RADIUS = 6371.0
 
@@ -53,7 +52,6 @@ def get_spec(rec, trans):
     return spec*EARTH_RADIUS
 
 def load_data(file_name, columns=None):
-    # data = pd.read_csv(file_name, delim_whitespace=True)
     data = np.loadtxt(file_name, skiprows=1, usecols=columns)
 
     return data
@@ -427,26 +425,6 @@ def get_distance_lla(row_lat, row_long, group_lat, group_long):
     # calculate the result
     return(c * EARTH_RADIUS)
 
-def interpolation(specular_df):
-
-    # Generate time list (in days) of interval 1 second
-    gran_time = np.linspace(0, 15, 15*24*3600)
-
-    time = round(specular_df['Time'])
-    lat = specular_df['Lat']
-    lon = specular_df['Lon']
-
-    lat_inter = interpolate.interp1d(time, lat, kind='linear')
-    lon_inter = interpolate.interp1d(time, lon, kind='linear')
-    
-    specular_df_granular = pd.DataFrame(columns=['Time', 'Lat', 'Lon'])
-
-    specular_df_granular['Time'] = gran_time
-    specular_df_granular['Lat'] = lat_inter(gran_time)
-    specular_df_granular['Lon'] = lon_inter(gran_time)
-
-    return specular_df_granular
-
 def apply_science_angles(specular_df, science_req='SSM'):
     if science_req == 'SSM' or science_req == 'FTS' or science_req == 'SWE_L':
         # this one is L-band
@@ -529,15 +507,15 @@ if __name__ == '__main__':
     specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
     get_revisit_stats(specular_df, science)
 
-    # RZSM
-    desired_freq = ['p', 'vhf']        
-    science = 'RZSM'
-    specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    get_revisit_stats(specular_df, science)
-
     # FTS
     desired_freq = ['l']        
     science = 'FTS'
+    # specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
+    get_revisit_stats(specular_df, science)
+
+    # RZSM
+    desired_freq = ['p', 'vhf']        
+    science = 'RZSM'
     specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
     get_revisit_stats(specular_df, science)
 
