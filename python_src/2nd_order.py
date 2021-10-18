@@ -1,5 +1,3 @@
-from operator import concat
-from numpy.lib.npyio import load
 import pandas as pd 
 import numpy as np
 from Alhazen_Plotemy import branchdeducing_twofinite
@@ -255,7 +253,7 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 temp_df = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'trans_lat', 'trans_lon', 'rec_lat', 'rec_lon'])
                 temp_df['Time'] = np.repeat(time/86400, repeat)         # in days
                 temp_df['Lat'] = lat_sp.reshape((-1,1))
-                temp_df['Lon'] = lat_sp.reshape((-1,1))
+                temp_df['Lon'] = lon_sp.reshape((-1,1))
                 temp_df['trans_lat'] = transmitters[:,0,:].ravel()
                 temp_df['trans_lon'] = transmitters[:,1,:].ravel()
                 temp_df['rec_lat'] = np.repeat(np.radians(receiver_shell[:, k*2:k*2+1]), repeat)
@@ -315,7 +313,9 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 temp_df['theta3'] = np.abs(np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))) * 180.0 / np.pi
                 
                 # Inclination angle is always < 60 deg (theta 1)
+                # print(temp_df)
                 temp_df = temp_df[temp_df['theta1'] <= 60.0]
+                # print(temp_df)
 
                 # Remove extra columns
                 keep    = ['Time', 'Lat', 'Lon', 'theta2', 'theta3']
@@ -484,6 +484,7 @@ if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
     filename = '/home/polfr/Downloads/15day_2orbit_blueTeam.txt'
+    filename = '/home/polfr/Documents/dummy_data/10_18_2021_GMAT/15day_15s_2orbit_blueTeam.txt'
 
     #Simons file path
     # filename = '/Users/michael/Desktop/ReportFile1_TestforPol.txt'
@@ -493,11 +494,51 @@ if __name__ == '__main__':
     rec_satNum = [6,6]
 
     # Transmitter information
-    trans_freq = ['l','l','l','l','l','l','p','vhf','vhf','vhf','vhf','vhf','vhf','vhf','vhf']
-    trans_sma = [29600.11860223169, 27977.504096425982, 25507.980889761526, 26560.219967218538, 7154.894323517232,\
-                7032.052725011441, 42164.60598791122, 7159.806603357321, 7169.733155278799, 7086.970861454123, 6899.35020845556,\
-                6954.536583827208, 6737.429588978587, 6904.52413627514, 6872.673000785395]
-    trans_satNum = [24, 2, 27, 30, 72, 3, 5, 23, 1, 12, 92, 3, 1, 12, 12]
+    trans_satNum = [12, 12,\
+                    2,\
+                    13, 14,\
+                    10, 10, 10,\
+                    11, 11, 10, 10, 10, 10, 10,\
+                    3,\
+                    5,\
+                    12, 11,\
+                    1,\
+                    12,\
+                    11, 11, 10, 10, 10, 10, 10, 10, 10,\
+                    3,\
+                    1,\
+                    12,\
+                    12]
+    trans_freq = ['l', 'l',\
+                  'l',\
+                  'l', 'l',\
+                  'l', 'l', 'l',\
+                  'l', 'l', 'l', 'l', 'l', 'l', 'l',\
+                  'l',\
+                  'p',\
+                  'vhf', 'vhf',\
+                  'vhf',\
+                  'vhf',\
+                  'vhf', 'vhf', 'vhf', 'vhf', 'vhf', 'vhf', 'vhf', 'vhf', 'vhf',\
+                  'vhf',\
+                  'vhf',\
+                  'vhf',\
+                  'vhf']
+    trans_sma = [29600.11860223169, 29600.11860223169,\
+                 27977.504096425982,\
+                 25507.980889761526, 25507.980889761526,\
+                 26560.219967218538, 26560.219967218538, 26560.219967218538,\
+                 7154.894323517232, 7154.894323517232, 7154.894323517232, 7154.894323517232, 7154.894323517232, 7154.894323517232, 7154.894323517232,\
+                 7032.052725011441,\
+                 42164.60598791122,\
+                 7159.806603357321, 7159.806603357321,\
+                 7169.733155278799,\
+                 7086.970861454123,\
+                 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556,\
+                 6954.536583827208,\
+                 6737.429588978587,\
+                 6904.52413627514,\
+                 6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
     # rec_sma = [EARTH_RADIUS + 450]
@@ -539,6 +580,6 @@ if __name__ == '__main__':
     # SWE L band
     desired_freq = ['l']        
     science = 'SWE_L'
-    specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    get_revisit_stats(specular_df, science)
+    # specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
+    # get_revisit_stats(specular_df, science)
     
