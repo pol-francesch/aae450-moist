@@ -52,7 +52,7 @@ def get_spec(rec, trans):
     return spec*EARTH_RADIUS
 
 def load_data(file_name, columns=None):
-    data = np.loadtxt(file_name, skiprows=1, usecols=columns)
+    data = np.loadtxt(file_name, skiprows=0, usecols=columns)
 
     return data
 
@@ -315,7 +315,7 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 temp_df['theta3'] = np.abs(np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))) * 180.0 / np.pi
                 
                 # Inclination angle is always < 60 deg (theta 1)
-                temp_df = temp_df[temp_df['theta1'] <= 180.0]
+                temp_df = temp_df[temp_df['theta1'] <= 60.0]
 
                 # Remove extra columns
                 keep    = ['Time', 'Lat', 'Lon', 'theta2', 'theta3']
@@ -483,23 +483,34 @@ def get_revisit_stats(specular_df, science_req):
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
-    filename = '/home/polfr/Documents/ReportFile1_TestforPol.txt'
+    filename = '/home/polfr/Downloads/15day_2orbit_blueTeam.txt'
 
     #Simons file path
     # filename = '/Users/michael/Desktop/ReportFile1_TestforPol.txt'
+    
+    # Receiver information
+    rec_sma = [EARTH_RADIUS+350, EARTH_RADIUS+550]
+    rec_satNum = [6,6]
+
+    # Transmitter information
+    trans_freq = ['l','l','l','l','l','l','p','vhf','vhf','vhf','vhf','vhf','vhf','vhf','vhf']
+    trans_sma = [29600.11860223169, 27977.504096425982, 25507.980889761526, 26560.219967218538, 7154.894323517232,\
+                7032.052725011441, 42164.60598791122, 7159.806603357321, 7169.733155278799, 7086.970861454123, 6899.35020845556,\
+                6954.536583827208, 6737.429588978587, 6904.52413627514, 6872.673000785395]
+    trans_satNum = [24, 2, 27, 30, 72, 3, 5, 23, 1, 12, 92, 3, 1, 12, 12]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    rec_sma = [EARTH_RADIUS + 450]
-    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    # rec_sma = [EARTH_RADIUS + 450]
+    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
-    # Number of sats per constellation
-    # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
-    # Same order as trans_sma
-    rec_satNum   = [1]
-    trans_satNum = [2,2]
+    # # Number of sats per constellation
+    # # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
+    # # Same order as trans_sma
+    # rec_satNum   = [1]
+    # trans_satNum = [2,2]
 
-    # Frequency of each transmitter constellation
-    trans_freq = ['p','p']
+    # # Frequency of each transmitter constellation
+    # trans_freq = ['p','p']
 
     # SSM
     desired_freq = ['l']        
