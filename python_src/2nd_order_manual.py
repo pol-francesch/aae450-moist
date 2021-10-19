@@ -8,30 +8,75 @@ from tqdm import tqdm
 EARTH_RADIUS = 6371.0
 
 def get_specular_points(time, receiver, transmitter):
-
+    # SMA's
+    r_sma = EARTH_RADIUS + 450
+    t_sma = EARTH_RADIUS + 35786
     specular_df = pd.DataFrame(columns=['Time','Lat','Lon','rec_lat','rec_lon','trans_lat', 'trans_lon'])
 
     for i in tqdm(range(time.shape[0])):
-        # Perform transformation
-        recLat = np.radians(receiver[i,0]) + np.pi/2.0 - np.radians(transmitter[i,0])
-        recLon = np.radians(receiver[i,1]) + np.pi/2.0 - np.radians(transmitter[i,1])
+        # Perform euler rotation
+        # Transmitter ECEF 
+        trans_x = t_sma * np.cos(transmitter[i,1]) * np.cos(transmitter[i,0])
+        trans_y = t_sma * np.sin(transmitter[i,1]) * np.cos(transmitter[i,0])
+        trans_z = t_sma * np.sin(transmitter[i,0])
+
+        # Receiver ECEF
+        rec_x = r_sma * np.cos(receiver[i,1]) * np.cos(receiver[i,0])
+        rec_y = r_sma * np.sin(receiver[i,1]) * np.cos(receiver[i,0])
+        rec_z = r_sma * np.sin(receiver[i,0])
+
+        # First rotation
+        alpha = np.pi/2 - np.arctan2(trans_y, trans_x)
+        beta  = np.pi/2 - np.arcsin(trans_z / t_sma)
+
+        trans_xp = trans_z*np.sin(beta) - trans_x*np.cos(beta)*np.sin(alpha) - trans_y*np.cos(beta)*np.cos(alpha)
+        trans_yp = trans_x*np.cos(alpha) + trans_y*np.sin(alpha)
+
+        rec_xp = rec_z*np.sin(beta) - rec_x*np.cos(beta)*np.sin(alpha) - rec_y*np.cos(beta)*np.cos(alpha)
+        rec_yp = rec_x*np.cos(alpha) + rec_y*np.sin(alpha)
+        rec_zp = rec_x*np.sin(beta)*np.sin(alpha) + rec_y*np.cos(alpha)*np.sin(beta)+rec_z*np.cos(beta)
+
+        # Second rotation
+        gamma = np.arctan2(trans_yp, trans_xp)
+
+        rec_xpp = rec_zp*np.sin(gamma) - rec_yp*np.cos(gamma)
+        rec_ypp = rec_yp*np.sin(gamma) - rec_zp*np.cos(gamma)
+        rec_zpp = rec_xp
+    
+        # Get the rotated LLA for the receiver
+        rec_latpp = np.arcsin(rec_zpp / r_sma)
+        rec_lonpp = np.arctan2(rec_ypp, rec_xpp)
 
         # Other parameters
-        c = EARTH_RADIUS / (EARTH_RADIUS+35786)
-        b = EARTH_RADIUS / (EARTH_RADIUS+450)
+        c = EARTH_RADIUS / t_sma
+        b = EARTH_RADIUS / r_sma
 
         # Get them goods
-        lat = branchdeducing_twofinite(obs=recLat, c=c, b=b)
-        lon = branchdeducing_twofinite(obs=recLon, c=c, b=b)
+        Lat_pp = branchdeducing_twofinite(obs=rec_latpp, c=c, b=b)
+        Lon_pp = branchdeducing_twofinite(obs=rec_lonpp, c=c, b=b)
 
         # If a specular point is found
-        if lat is not None and lon is not None:
+        if Lat_pp is not None and Lon_pp is not None:
             # Rotate the goods back
-            lat = lat - np.pi + np.radians(transmitter[i,0])
-            lon = lon - np.pi + np.radians(transmitter[i,1])
+            # ECEF of specular point
+            spec_xpp = EARTH_RADIUS * np.cos(Lon_pp) * np.cos(Lat_pp)
+            spec_ypp = EARTH_RADIUS * np.sin(Lon_pp) * np.cos(Lat_pp)
+            spec_zpp = EARTH_RADIUS * np.sin(Lat_pp)
+
+            spec_xp = spec_zpp
+            spec_yp = -spec_xpp*np.cos(gamma) + spec_ypp*np.sin(gamma)
+            spec_zp = spec_xpp*np.sin(gamma) - spec_ypp*np.cos(gamma)
+
+            spec_x = -spec_xp*np.cos(beta)*np.sin(alpha) + spec_yp*np.cos(alpha) + spec_zp*np.sin(beta)*np.sin(alpha)
+            spec_y = -spec_xp*np.cos(beta)*np.cos(alpha) + spec_yp*np.sin(alpha) + spec_zp*np.cos(alpha)*np.sin(beta)
+            spec_z = spec_xp*np.sin(beta) + spec_zp*np.cos(beta)
+
+            # Finally get the LL of the specular point fuck me
+            Lat = np.arcsin(spec_z/ EARTH_RADIUS)
+            Lon = np.arctan2(spec_y, spec_x)
 
             # Add new row to df
-            dic = {'Time': time[i], 'Lat': lat, 'Lon': lon, 'rec_lat': np.radians(receiver[i,0]),\
+            dic = {'Time': time[i], 'Lat': Lat, 'Lon': Lon, 'rec_lat': np.radians(receiver[i,0]),\
                 'rec_lon': np.radians(receiver[i,1]), 'trans_lat': np.radians(transmitter[i,0]),\
                 'trans_lon': np.radians(transmitter[i,1])}
             specular_df = specular_df.append(dic, ignore_index=True)
@@ -169,7 +214,7 @@ def apply_science_angles_2(specular_df):
     #theta (Angle between rS and rSR)
     temp_df['dot_s_sr'] = temp_df['r_srx']*specular_df['spec_x'] + temp_df['r_sry']*specular_df['spec_y'] + temp_df['r_srz']*specular_df['spec_z'] 
     temp_df['mag_sr'] = np.sqrt(np.square(specular_df['trans_x']) + np.square(specular_df['trans_y']) + np.square(specular_df['trans_z']))
-    specular_df['theta1'] = np.abs(np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))) * 180.0 / np.pi
+    specular_df['theta1'] = 360 - np.abs(np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))) * 180.0 / np.pi
 
     print(specular_df['theta1'])
     print(min(specular_df['theta1']))
@@ -190,7 +235,7 @@ def apply_science_angles_manually(specular_df):
 
 if __name__ == '__main__':
     filename = '/home/polfr/Documents/dummy_data/10_06_2021_GMAT/Unzipped/ReportFile1_TestforPol.txt'
-
+    filename = '/home/polfr/Downloads/15day_2orbit_blueTeam.txt'
     # Get the file
     data = np.loadtxt(filename, skiprows=1)
 
