@@ -279,7 +279,7 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 lat_sp = vfunc(obs=rec_latpp, c=c, b=b).astype(np.float)
                 lon_sp = vfunc(obs=rec_lonpp, c=c, b=b).astype(np.float)
                 repeat = lat_sp.shape[1]
-                print(lat_sp)
+                # print(lat_sp)
                 # Put it in a dataframe because that is easier to handle from now on
                 # There may be an issue here just fyi
                 # If you print the DF before you dropna, you will see some NaN for trans & rec. That doesn't make sense
@@ -303,9 +303,9 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 temp_df['alpha'] = alpha.ravel()
                 temp_df['beta'] = beta.ravel()
                 temp_df['gamma'] = gamma.ravel()
-                print(temp_df)
+                # print(temp_df)
                 temp_df = temp_df.dropna()                              # if no specular point, previous function returns none. Remove these entries
-                print(temp_df)
+                # print(temp_df)
                 # Now rotate back 
                 # (this is done here to avoid doing rotation on None object which can be returned from specular point)
                 temp_df['spec_xpp'] = EARTH_RADIUS * np.cos(temp_df['Lon_pp']) * np.cos(temp_df['Lat_pp'])
@@ -326,7 +326,7 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 
                 # Enforce the type
                 temp_df = temp_df.astype('float64')
-                print(temp_df)
+
                 # Apply science requirements            
                 #find r_sr, r_rt
                 #r_sr
@@ -342,8 +342,8 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 #find thetas (for all names to the left of '=', coefficient 'r' left out, ex: r_rt made to be rt)
                 #theta1 (assumption of r_s constant?)
                 temp_df['dot_s_sr'] = temp_df['r_srx']*temp_df['spec_x'] + temp_df['r_sry']*temp_df['spec_y'] + temp_df['r_srz']*temp_df['spec_z'] 
-                temp_df['mag_sr'] = np.sqrt(np.square(temp_df['trans_x']) + np.square(temp_df['trans_y']) + np.square(temp_df['trans_z']))
-                temp_df['theta1'] = np.abs(np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))) * 180.0 / np.pi
+                temp_df['mag_sr'] = np.sqrt(np.square(temp_df['r_srx']) + np.square(temp_df['r_sry']) + np.square(temp_df['r_srz']))
+                temp_df['theta1'] = 180.0 - np.abs(np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))) * 180.0 / np.pi
 
                 #theta2
                 temp_df['dot_r_sr'] = temp_df['r_srx']*temp_df['rec_x'] + temp_df['r_sry']*temp_df['rec_y'] + temp_df['r_srz']*temp_df['rec_z'] 
@@ -356,10 +356,6 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 temp_df['theta3'] = np.abs(np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))) * 180.0 / np.pi
                 
                 # Inclination angle is always < 60 deg (theta 1)
-                print(temp_df['theta1'])
-                print(min(temp_df['theta1']))
-                print(max(temp_df['theta1']))
-                exit()
                 temp_df = temp_df[temp_df['theta1'] <= 60.0]
                 # print(temp_df)
 
@@ -367,7 +363,6 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 keep    = ['Time', 'Lat', 'Lon', 'theta2', 'theta3']
                 extra   = [elem for elem in temp_df.columns.to_list() if elem not in keep]
                 temp_df = temp_df.drop(columns=extra)
-                print(temp_df)
 
                 # Transfer numpy array to list to get it to work well
                 # Transform to degrees while we're at it
@@ -531,6 +526,8 @@ if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
     filename = '/home/polfr/Downloads/15day_2orbit_blueTeam.txt'
+    filename = '/home/polfr/Documents/test_data.txt'
+    filename = '/home/polfr/Documents/dummy_data/15day_15s_orbit_blueTeam.txt'
     # filename = '/home/polfr/Documents/dummy_data/10_18_2021_GMAT/15day_15s_2orbit_blueTeam.txt'
 
     #Simons file path
@@ -588,21 +585,17 @@ if __name__ == '__main__':
                  6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    rec_sma = [EARTH_RADIUS + 450]
-    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    # rec_sma = [EARTH_RADIUS + 450]
+    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
     # Number of sats per constellation
     # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
     # Same order as trans_sma
-    rec_satNum   = [1]
-    trans_satNum = [2,2]
+    # rec_satNum   = [1]
+    # trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    trans_freq = ['p','p']
-    desired_freq = ['p']        
-    science = 'SWE_P'
-    specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    get_revisit_stats(specular_df, science)
+    # trans_freq = ['p','p']
 
     # SSM
     desired_freq = ['l']        
@@ -616,16 +609,17 @@ if __name__ == '__main__':
     # specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
     get_revisit_stats(specular_df, science)
 
-    # RZSM
-    desired_freq = ['p', 'vhf']        
-    science = 'RZSM'
-    specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    get_revisit_stats(specular_df, science)
-
     # SWE P band
     desired_freq = ['p']        
     science = 'SWE_P'
     specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
+    get_revisit_stats(specular_df, science)
+
+    # RZSM
+    desired_freq = ['vhf']        
+    science = 'RZSM'
+    specular_df_vhf = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
+    specular_df = pd.concat([specular_df, specular_df_vhf])
     get_revisit_stats(specular_df, science)
 
     # SWE L band

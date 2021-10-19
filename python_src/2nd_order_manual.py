@@ -187,10 +187,12 @@ def apply_science_anlges(specular_df):
     #find thetas (for all names to the left of '=', coefficient 'r' left out, ex: r_rt made to be rt)
     #theta (Angle between rS and rSR)
     temp_df['dot_s_sr'] = temp_df['r_srx']*temp_df['spec_x'] + temp_df['r_sry']*temp_df['spec_y'] + temp_df['r_srz']*temp_df['spec_z'] 
-    temp_df['mag_sr'] = np.sqrt(np.square(temp_df['trans_x']) + np.square(temp_df['trans_y']) + np.square(temp_df['trans_z']))
-    temp_df['theta1'] = np.abs(np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))) * 180.0 / np.pi
-
+    temp_df['mag_sr'] = np.sqrt(np.square(temp_df['r_srx']) + np.square(temp_df['r_sry']) + np.square(temp_df['r_srz']))
+    temp_df['theta1'] = 180.0 - np.abs(np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))) * 180.0 / np.pi
+    
+    temp_df = temp_df[temp_df['theta1'] <= 60.0]
     print(min(temp_df['theta1']))
+    print(temp_df)
 
 def apply_science_angles_2(specular_df):
     # SMA's
@@ -213,7 +215,7 @@ def apply_science_angles_2(specular_df):
     #find thetas (for all names to the left of '=', coefficient 'r' left out, ex: r_rt made to be rt)
     #theta (Angle between rS and rSR)
     temp_df['dot_s_sr'] = temp_df['r_srx']*specular_df['spec_x'] + temp_df['r_sry']*specular_df['spec_y'] + temp_df['r_srz']*specular_df['spec_z'] 
-    temp_df['mag_sr'] = np.sqrt(np.square(specular_df['trans_x']) + np.square(specular_df['trans_y']) + np.square(specular_df['trans_z']))
+    temp_df['mag_sr'] = np.sqrt(np.square(specular_df['r_srx']) + np.square(specular_df['r_sry']) + np.square(specular_df['r_srz']))
     specular_df['theta1'] = 360 - np.abs(np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))) * 180.0 / np.pi
 
     print(specular_df['theta1'])
@@ -236,6 +238,9 @@ def apply_science_angles_manually(specular_df):
 if __name__ == '__main__':
     filename = '/home/polfr/Documents/dummy_data/10_06_2021_GMAT/Unzipped/ReportFile1_TestforPol.txt'
     filename = '/home/polfr/Downloads/15day_2orbit_blueTeam.txt'
+    filename = '/home/polfr/Documents/test_data.txt'
+    filename = '/home/polfr/Documents/dummy_data/15day_15s_orbit_blueTeam.txt'
+
     # Get the file
     data = np.loadtxt(filename, skiprows=1)
 
@@ -245,9 +250,12 @@ if __name__ == '__main__':
     transmitter = data[:,5:7]
 
     # Manually check you've got the right data
-    # print(time[0])
-    # print(receiver[0])
-    # print(transmitter[0])
+    print(time.shape)
+    print(receiver.shape)
+    print(transmitter.shape)
+    print(data.shape)
+
+    exit()
 
     # Get the specular points
     specular_df = get_specular_points(time, receiver, transmitter)
