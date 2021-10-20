@@ -50,7 +50,7 @@ def get_spec(rec, trans):
     return spec*EARTH_RADIUS
 
 def load_data(file_name, columns=None):
-    data = np.loadtxt(file_name, skiprows=0, usecols=columns)
+    data = np.loadtxt(file_name, skiprows=1, usecols=columns)
 
     return data
 
@@ -431,19 +431,27 @@ def get_swe_100m(specular_df):
     specular_df['approx_LatSp'] = round(specular_df['Lat'])
     specular_df['approx_LonSp'] = round(specular_df['Lon'])
 
+    specular_df = specular_df[specular_df['approx_LatSp'] <= 70.0]
+
     # Calculate time difference
     # specular_df.sort_values(by=['approx_LatSp', 'approx_LonSp', 'Time'], inplace=True)
     specular_df = specular_df.groupby(['approx_LatSp', 'approx_LonSp'])
+
+    total_110m = 0
+    buckets = (360.0*0.1)*(140.0*0.1)
 
     for name, group in specular_df:
         # print(group)
         test = group.apply(lambda row: get_distance_lla(row['Lat'], row['Lon'], group['Lat'], group['Lon']), axis=1)
         test = test.to_numpy().reshape((1,-1))
         
-        km_1 = test[test < 1.0]
+        km_1 = test[test < 0.1]
 
         if len(km_1) > 0:
-            print('For the following group: ' + str(name) + ' the following points exist: ' + str(km_1))
+            total_110m = total_110m + 1
+    
+    print('Amount of SWE 100m passes: ' + str(total_110m))
+    print('Coverage of SWE 100m passes: '+ str(total_110m/buckets))
 
 def get_distance_lla(row_lat, row_long, group_lat, group_long):
     def radians(degrees):
@@ -487,48 +495,61 @@ def get_revisit_stats(specular_df, science_req):
     specular_df = apply_science_angles(specular_df, science_req)
     # Get revisit
     revisit_info = get_revisit_info(specular_df)
+    # Total amount of lat lon squares possible (0.1x0.1 deg grid)
+    amt_buckets = (360.0*0.1)*(180.0*0.1)
 
     # Get revisit stats based on science requirements
     if science_req == 'SSM' or science_req == 'RZSM':
         # Global
         global_rev = revisit_info[revisit_info['approx_LatSp'] <= 50.0]
+        global_buckets = (360.0*0.1)*(100.0*0.1)
+        global_quantile = global_rev['revisit'].quantile(0.90)
+        global_coverage = global_rev[global_rev['revisit'] <= global_quantile].shape[0] / global_buckets
 
-        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_rev['revisit'].quantile(0.90)))
-        print('99.9 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_rev['revisit'].quantile(0.99)))
+        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile))
+        print('Coverage for '+science_req+' Global: ' + str(global_coverage))
 
         # Boreal forest
         boreal = revisit_info[revisit_info['approx_LatSp'] <= 70.0]
-        boreal = revisit_info[revisit_info['approx_LatSp'] >= 50.0]
+        boreal = boreal[boreal['approx_LatSp'] >= 50.0]
+        boreal_buckets = (360.0*0.1)*(40.0*0.1)
+        boreal_quantile = boreal['revisit'].quantile(0.90)
+        boreal_coverage = boreal[boreal['revisit'] <= boreal_quantile].shape[0] / boreal_buckets
 
-        print('99.0 Percentile of Maximum Revisit for '+science_req+' Boreal: ' + str(global_rev['revisit'].quantile(0.90)))
-        print('99.9 Percentile of Maximum Revisit for '+science_req+' Boreal: ' + str(global_rev['revisit'].quantile(0.99)))
+        print('99.0 Percentile of Maximum Revisit for '+science_req+' Boreal: ' + str(boreal_quantile))
+        print('Coverage for '+science_req+' Boreal: ' + str(boreal_coverage))
 
     elif science_req == 'FTS':
         # Apply latitudes
         revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
-        
-        # Show results
-        print('99.0 Percentile of Maximum Revisit for FTS: ' + str(revisit_info['revisit'].quantile(0.90)))
-        print('99.9 Percentile of Maximum Revisit for FTS: ' + str(revisit_info['revisit'].quantile(0.99)))
+        buckets = (360.0*0.1)*(120.0*0.1)
+        quantile = revisit_info['revisit'].quantile(0.90)
+        coverage = revisit_info[revisit_info['revisit'] <= quantile].shape[0] / buckets
+
+        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile))
+        print('Coverage for '+science_req+' Global: ' + str(coverage))
+
     elif science_req == 'SWE_L':
-        print('TODO: SWE_L')
+        get_swe_100m(specular_df)
     elif science_req == 'SWE_P':
         # Apply latitudes
         revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
+        buckets = (360.0*0.1)*(120.0*0.1)
+        quantile = revisit_info['revisit'].quantile(0.90)
+        coverage = revisit_info[revisit_info['revisit'] <= quantile].shape[0] / buckets
+
+        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile))
+        print('Coverage for '+science_req+' Global: ' + str(coverage))
         
-        # Show results
-        print('99.0 Percentile of Maximum Revisit for SWE P-Band: ' + str(revisit_info['revisit'].quantile(0.90)))
-        print('99.9 Percentile of Maximum Revisit for SWE P-Band: ' + str(revisit_info['revisit'].quantile(0.99)))
     else:
-        exit('Not a known science requirement type')
+        print('Not a known science requirement type')
 
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
     filename = '/home/polfr/Downloads/15day_2orbit_blueTeam.txt'
     filename = '/home/polfr/Documents/test_data.txt'
-    filename = '/home/polfr/Documents/dummy_data/15day_15s_orbit_blueTeam.txt'
-    # filename = '/home/polfr/Documents/dummy_data/10_18_2021_GMAT/15day_15s_2orbit_blueTeam.txt'
+    # filename = '/home/polfr/Documents/dummy_data/15day_15s_orbit_blueTeam.txt'
 
     #Simons file path
     # filename = '/Users/michael/Desktop/ReportFile1_TestforPol.txt'
@@ -608,6 +629,7 @@ if __name__ == '__main__':
     science = 'FTS'
     # specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
     get_revisit_stats(specular_df, science)
+    specular_l = specular_df
 
     # SWE P band
     desired_freq = ['p']        
@@ -626,5 +648,5 @@ if __name__ == '__main__':
     desired_freq = ['l']        
     science = 'SWE_L'
     # specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    # get_revisit_stats(specular_df, science)
+    get_revisit_stats(specular_l, science)
     
