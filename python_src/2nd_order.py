@@ -555,6 +555,7 @@ def get_revisit_stats(specular_df, science_req):
         boreal_spec = boreal_spec[boreal_spec['Lat'] <= 50.0]
 
         print('Number of specular points in boreal forest: ' + str(boreal_spec.shape[0]))
+        print('Max latitude: ' + str(specular_df['Lat'].max()))
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Boreal: ' + str(boreal_quantile))
         print('Coverage for '+science_req+' Boreal: ' + str(boreal_coverage))
         print('Where there are this many samples: ' + str(boreal[boreal['revisit'] <= boreal_quantile].shape[0]) + ' out of this many buckets: ' + str(boreal_buckets))
