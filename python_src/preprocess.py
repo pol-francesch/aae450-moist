@@ -83,7 +83,7 @@ if __name__ == '__main__':
     transmitters = load_data(transmitters_file, rows=1)
 
     transmitters = reorder_transmitters(transmitters, sat_shell_assign, shell_num_sats)
-    transmitters = interpolation(transmitters, dt=15, days=15)
+    transmitters = interpolation(transmitters, dt=5, days=15)
 
     print(transmitters.shape)
 
@@ -92,10 +92,10 @@ if __name__ == '__main__':
     receivers_file = '/home/polfr/Documents/dummy_data/ReportFile_recievers_15sec_15day.txt'
     receivers = load_data(receivers_file, rows=0)
     print(receivers.shape)
-    receivers = interpolation(receivers, dt=15, days=15)
+    receivers = interpolation(receivers, dt=5, days=15)
     print(receivers.shape)
 
     # Combine and save files
-    filename = '/home/polfr/Documents/dummy_data/15day_15s_orbit_blueTeam.txt'
+    filename = '/home/polfr/Documents/dummy_data/15day_5s_orbit_blueTeam.txt'
     combined = combine_rec_trans(receivers, transmitters)
     np.savetxt(filename, combined)
