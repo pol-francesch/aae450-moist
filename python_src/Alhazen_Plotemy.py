@@ -144,11 +144,17 @@ def branchdeducing_twofinite(obs, c, b):
 	deriv = f_E7(obs, c, b) - f_E7(obs - tolerance, c, b)
 
 	if - np.pi / 2 <= obs and obs < l1:
-		return -acos(((b * c_obs) * 0.25 + E5 * 0.5 + sqrt(b2 * c_obs2 / 2.0 - E0 / 3.0 - E4 + E6)*0.5).real)
+		value = ((b * c_obs) * 0.25 + E5 * 0.5 + sqrt(b2 * c_obs2 / 2.0 - E0 / 3.0 - E4 + E6)*0.5).real
+		if abs(value) <= 1.0:
+			return -acos(value)
 	elif l1 <= obs and obs <= l2 and deriv <= 0:
-		return  acos(((b * c_obs) * 0.25 + E5 * 0.5 + sqrt(b2 * c_obs2 / 2.0 - E0 / 3.0 - E4 + E6)*0.5).real)
+		value = ((b * c_obs) * 0.25 + E5 * 0.5 + sqrt(b2 * c_obs2 / 2.0 - E0 / 3.0 - E4 + E6)*0.5).real
+		if abs(value) <= 1.0:
+			return  acos()
 	elif (l2 < obs and obs < np.pi/2) or deriv > 0:
-		return  acos(((b * c_obs) * 0.25 + E5 * 0.5 - sqrt(b2 * c_obs2 / 2.0 - E0 / 3.0 - E4 + E6)*0.5).real)
+		value = ((b * c_obs) * 0.25 + E5 * 0.5 - sqrt(b2 * c_obs2 / 2.0 - E0 / 3.0 - E4 + E6)*0.5).real
+		if abs(value) <= 1.0:
+			return  acos()
 
 def numerical(obs, c, b, src=np.pi*0.5, rt=2575.0):
 # Numerically determines the specular point for an arbitrary 
