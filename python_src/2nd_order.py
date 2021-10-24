@@ -1,3 +1,4 @@
+from numpy.core.numeric import argwhere
 import pandas as pd 
 import numpy as np
 from Alhazen_Plotemy import branchdeducing_twofinite
@@ -437,33 +438,54 @@ def get_swe_100m(specular_df):
     # specular_df.sort_values(by=['approx_LatSp', 'approx_LonSp', 'Time'], inplace=True)
     specular_df = specular_df.groupby(['approx_LatSp', 'approx_LonSp'])
 
-    total_110m = 0
-    buckets = (360.0*0.1)*(140.0*0.1)
+    total_100m = 0
+    total_500m = 0
+    total_1km  = 0
+    buckets = (360.0*1.0)*(140.0*1.0)
 
     for name, group in specular_df:
-        # print(group)
-        test = group.apply(lambda row: get_distance_lla(row['Lat'], row['Lon'], group['Lat'], group['Lon']), axis=1)
-        test = test.to_numpy().reshape((1,-1))
-        
-        km_1 = test[test < 0.1]
+        row_mins = []
+        for index, row in group.iterrows():
+            # Get distance
+            distance_from_row = get_distance_lla(row['Lat'], row['Lon'], group['Lat'].drop(index), group['Lon'].drop(index))
+            minimum = np.amin(distance_from_row)
 
-        if len(km_1) > 0:
-            total_110m = total_110m + 1
+            row_mins = row_mins + [minimum]
+        array = np.array(row_mins)
+        # print(array)
+        # print('Should have this -1: ' + str(group.shape[0]) + ' but it has: ' + str(array.size))
+
+        m_100 = array[array < 0.1]
+        m_500 = array[array < 0.5]
+        km_1  = array[array < 1.0]
+
+        if m_100.size > 0:
+            total_100m = total_100m + 1
+        if m_500.size > 0:
+            total_500m = total_500m + 1    
+        if km_1.size > 0:
+            total_1km = total_1km + 1     
     
-    print('Amount of SWE 100m passes: ' + str(total_110m))
-    print('Coverage of SWE 100m passes: '+ str(total_110m/buckets))
+    print('######################################################################################')
+    print('Amount of SWE 100m passes: ' + str(total_100m))
+    print('Coverage of SWE 100m passes: '+ str(total_100m/buckets))
+
+    print('Amount of SWE 500m passes: ' + str(total_500m))
+    print('Coverage of SWE 500m passes: '+ str(total_500m/buckets))
+
+    print('Amount of SWE 1km passes: ' + str(total_1km))
+    print('Coverage of SWE 1km passes: '+ str(total_1km/buckets))
+    print('######################################################################################')
 
 def get_distance_lla(row_lat, row_long, group_lat, group_long):
     def radians(degrees):
         return degrees * np.pi / 180.0
     
     global EARTH_RADIUS
-    # The math module contains a function named
-    # radians which converts from degrees to radians.
-    lon1 = radians(row_lat)
+    lon1 = radians(group_long)
     lon2 = radians(row_long)
     lat1 = radians(group_lat)
-    lat2 = radians(group_long)
+    lat2 = radians(row_lat)
       
     # Haversine formula
     dlon = lon2 - lon1
@@ -478,14 +500,14 @@ def get_distance_lla(row_lat, row_long, group_lat, group_long):
 def apply_science_angles(specular_df, science_req='SSM'):
     if science_req == 'SSM' or science_req == 'FTS' or science_req == 'SWE_L':
         # this one is L-band
-        specular_df = specular_df[specular_df['theta2'] < 21.0]
-        specular_df = specular_df[specular_df['theta3'] < 62.5]
+        specular_df = specular_df[specular_df['theta2'] <= 21.0]
+        specular_df = specular_df[specular_df['theta3'] <= 62.5]
     elif science_req == 'RZSM' or science_req == 'SWE_P':
         # this one is p/VHF-band
-        specular_df = specular_df[specular_df['theta2'] < 60.0]
-        specular_df = specular_df[specular_df['theta3'] < 60.0]
+        specular_df = specular_df[specular_df['theta2'] <= 60.0]
+        specular_df = specular_df[specular_df['theta3'] <= 60.0]
     else:
-        exit('Not a known science requirement type')
+        print('Not a known science requirement type')
     
     specular_df = specular_df.drop(columns=['theta2', 'theta3'])
     return specular_df
@@ -495,6 +517,7 @@ def get_revisit_stats(specular_df, science_req):
     specular_df = apply_science_angles(specular_df, science_req)
     # Get revisit
     revisit_info = get_revisit_info(specular_df)
+
     # Total amount of lat lon squares possible (0.1x0.1 deg grid)
     amt_buckets = (360.0*0.1)*(180.0*0.1)
 
@@ -502,44 +525,53 @@ def get_revisit_stats(specular_df, science_req):
     if science_req == 'SSM' or science_req == 'RZSM':
         # Global
         global_rev = revisit_info[revisit_info['approx_LatSp'] <= 50.0]
-        global_buckets = (360.0*0.1)*(100.0*0.1)
+        global_buckets = (360.0/0.1)*(100.0/0.1)
         global_quantile = global_rev['revisit'].quantile(0.90)
         global_coverage = global_rev[global_rev['revisit'] <= global_quantile].shape[0] / global_buckets
 
+        print('######################################################################################')
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile))
         print('Coverage for '+science_req+' Global: ' + str(global_coverage))
+        print('Where there are this many samples: ' + str(global_rev[global_rev['revisit'] <= global_quantile].shape[0]) + ' out of this many buckets: ' + str(global_buckets))
 
         # Boreal forest
         boreal = revisit_info[revisit_info['approx_LatSp'] <= 70.0]
         boreal = boreal[boreal['approx_LatSp'] >= 50.0]
-        boreal_buckets = (360.0*0.1)*(40.0*0.1)
+        boreal_buckets = (360.0/0.1)*(40.0/0.1)
         boreal_quantile = boreal['revisit'].quantile(0.90)
         boreal_coverage = boreal[boreal['revisit'] <= boreal_quantile].shape[0] / boreal_buckets
 
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Boreal: ' + str(boreal_quantile))
         print('Coverage for '+science_req+' Boreal: ' + str(boreal_coverage))
+        print('Where there are this many samples: ' + str(boreal[boreal['revisit'] <= boreal_quantile].shape[0]) + ' out of this many buckets: ' + str(boreal_buckets))
+        print('######################################################################################')
 
     elif science_req == 'FTS':
         # Apply latitudes
         revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
-        buckets = (360.0*0.1)*(120.0*0.1)
+        buckets = (360.0/0.1)*(120.0/0.1)
         quantile = revisit_info['revisit'].quantile(0.90)
         coverage = revisit_info[revisit_info['revisit'] <= quantile].shape[0] / buckets
 
+        print('######################################################################################')
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile))
         print('Coverage for '+science_req+' Global: ' + str(coverage))
+        print('Where there are this many samples: ' + str(revisit_info[revisit_info['revisit'] <= quantile].shape[0]) + ' out of this many buckets: ' + str(buckets))
+        print('######################################################################################')
 
     elif science_req == 'SWE_L':
         get_swe_100m(specular_df)
     elif science_req == 'SWE_P':
         # Apply latitudes
         revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
-        buckets = (360.0*0.1)*(120.0*0.1)
+        buckets = (360.0/0.1)*(120.0/0.1)
         quantile = revisit_info['revisit'].quantile(0.90)
         coverage = revisit_info[revisit_info['revisit'] <= quantile].shape[0] / buckets
 
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile))
         print('Coverage for '+science_req+' Global: ' + str(coverage))
+        print('Where there are this many samples: ' + str(revisit_info[revisit_info['revisit'] <= quantile].shape[0]) + ' out of this many buckets: ' + str(buckets))
+        print('######################################################################################')
         
     else:
         print('Not a known science requirement type')
@@ -550,6 +582,7 @@ if __name__ == '__main__':
     filename = '/home/polfr/Downloads/15day_2orbit_blueTeam.txt'
     filename = '/home/polfr/Documents/test_data.txt'
     # filename = '/home/polfr/Documents/dummy_data/15day_15s_orbit_blueTeam.txt'
+    filename = '/home/polfr/Documents/dummy_data/10_06_2021_GMAT/Unzipped/ReportFile1_TestforPol.txt'
 
     #Simons file path
     # filename = '/Users/michael/Desktop/ReportFile1_TestforPol.txt'
@@ -606,17 +639,17 @@ if __name__ == '__main__':
                  6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    # rec_sma = [EARTH_RADIUS + 450]
-    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    rec_sma = [EARTH_RADIUS + 450]
+    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
     # Number of sats per constellation
     # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
     # Same order as trans_sma
-    # rec_satNum   = [1]
-    # trans_satNum = [2,2]
+    rec_satNum   = [1]
+    trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['p','p']
+    trans_freq = ['l','l']
 
     # SSM
     desired_freq = ['l']        
