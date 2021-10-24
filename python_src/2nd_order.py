@@ -258,8 +258,8 @@ def get_specular_points_single_trans_const(transmitters, trans_sma, time, recive
             b = EARTH_RADIUS / (rec_sma[j])                     # b = R_spec / R_obs
             
             # Get them goods
-            lat_sp = vfunc(obs=rec_latpp, c=c, b=b).astype(np.float)
-            lon_sp = vfunc(obs=rec_lonpp, c=c, b=b).astype(np.float)
+            lat_sp = vfunc(obs=rec_latpp, c=c, b=b).astype(np.float64)
+            lon_sp = vfunc(obs=rec_lonpp, c=c, b=b).astype(np.float64)
             repeat = lat_sp.shape[1]
             # print(lat_sp)
             # Put it in a dataframe because that is easier to handle from now on
@@ -430,7 +430,7 @@ def get_revisit_info(specular_df):
     max_rev_area_df = specular_df[indeces]
 
     # Any revisit that is less than 1 hour is removed. Typically this occurs because of a lack of samples (due to low sim time)
-    max_rev_area_df['revisit'].mask(max_rev_area_df['revisit'] < 0.04, other=np.nan, inplace=True)
+    # max_rev_area_df['revisit'].mask(max_rev_area_df['revisit'] < 0.04, other=np.nan, inplace=True)
 
     return max_rev_area_df
 
@@ -647,17 +647,17 @@ if __name__ == '__main__':
                  6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    rec_sma = [EARTH_RADIUS + 450]
-    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    # rec_sma = [EARTH_RADIUS + 450]
+    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
     # Number of sats per constellation
     # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
     # Same order as trans_sma
-    rec_satNum   = [1]
-    trans_satNum = [2,2]
+    # rec_satNum   = [1]
+    # trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    trans_freq = ['l','l']
+    # trans_freq = ['l','l']
 
     # SSM
     desired_freq = ['l']        
