@@ -325,7 +325,13 @@ def get_specular_points_single_trans_const(transmitters, trans_sma, time, recive
             #theta1 (assumption of r_s constant?)
             temp_df['dot_s_sr'] = temp_df['r_srx']*temp_df['spec_x'] + temp_df['r_sry']*temp_df['spec_y'] + temp_df['r_srz']*temp_df['spec_z'] 
             temp_df['mag_sr'] = np.sqrt(np.square(temp_df['r_srx']) + np.square(temp_df['r_sry']) + np.square(temp_df['r_srz']))
-            temp_df['theta1'] = 180.0 - np.abs(np.arccos(temp_df['dot_s_sr']/(temp_df['mag_sr']*EARTH_RADIUS))) * 180.0 / np.pi
+            
+            # Arcos is limited to [-1 1]. Due to numerical issues, sometimes our are slightly outside this range.
+            # Force them inside the range
+            temp_df['theta1_temp'] = temp_df['dot_s_sr'] / (temp_df['mag_sr']*EARTH_RADIUS)
+            temp_df['theta1_temp'].where(temp_df['theta1_temp'] <= 1.0, 1.0, inplace=True)
+            temp_df['theta1_temp'].where(temp_df['theta1_temp'] >= -1.0, -1.0, inplace=True)
+            temp_df['theta1'] = 180.0 - np.abs(np.arccos(temp_df['theta1_temp'])) * 180.0 / np.pi
 
             #theta2
             temp_df['dot_r_sr'] = temp_df['r_srx']*temp_df['rec_x'] + temp_df['r_sry']*temp_df['rec_y'] + temp_df['r_srz']*temp_df['rec_z'] 
@@ -655,17 +661,17 @@ if __name__ == '__main__':
                  6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    # rec_sma = [EARTH_RADIUS + 450]
-    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    rec_sma = [EARTH_RADIUS + 450]
+    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
     # Number of sats per constellation
     # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
     # Same order as trans_sma
-    # rec_satNum   = [1]
-    # trans_satNum = [2,2]
+    rec_satNum   = [1]
+    trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['l','l']
+    trans_freq = ['l','l']
 
     # SSM
     desired_freq = ['l']        
