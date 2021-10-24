@@ -354,7 +354,7 @@ def get_specular_points_single_trans_const(transmitters, trans_sma, time, recive
             # Append
             spec_df = pd.concat([spec_df, temp_df])
         
-    print(mp.current_process().name + ' has stopped working.')
+    print(mp.current_process().name + ' has finished working.')
 
     return spec_df
 
@@ -534,21 +534,21 @@ def get_revisit_stats(specular_df, science_req):
     # Get revisit stats based on science requirements
     if science_req == 'SSM' or science_req == 'RZSM':
         # Global
-        global_rev = revisit_info[revisit_info['approx_LatSp'] <= 50.0]
-        global_buckets = (360.0/0.1)*(100.0/0.1)
-        global_quantile = global_rev['revisit'].quantile(0.90)
-        global_coverage = global_rev[global_rev['revisit'] <= global_quantile].shape[0] / global_buckets
+        # global_rev = revisit_info[revisit_info['approx_LatSp'] <= 50.0]
+        # global_buckets = (360.0/0.1)*(100.0/0.1)
+        # global_quantile = global_rev['revisit'].quantile(0.99)
+        # global_coverage = global_rev[global_rev['revisit'] <= global_quantile].shape[0] / global_buckets
 
-        print('######################################################################################')
-        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile))
-        print('Coverage for '+science_req+' Global: ' + str(global_coverage))
-        print('Where there are this many samples: ' + str(global_rev[global_rev['revisit'] <= global_quantile].shape[0]) + ' out of this many buckets: ' + str(global_buckets))
+        # print('######################################################################################')
+        # print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile))
+        # print('Coverage for '+science_req+' Global: ' + str(global_coverage))
+        # print('Where there are this many samples: ' + str(global_rev[global_rev['revisit'] <= global_quantile].shape[0]) + ' out of this many buckets: ' + str(global_buckets))
 
         # Boreal forest
         boreal = revisit_info[revisit_info['approx_LatSp'] <= 70.0]
         boreal = boreal[boreal['approx_LatSp'] >= 50.0]
         boreal_buckets = (360.0/0.1)*(40.0/0.1)
-        boreal_quantile = boreal['revisit'].quantile(0.90)
+        boreal_quantile = boreal['revisit'].quantile(0.99)
         boreal_coverage = boreal[boreal['revisit'] <= boreal_quantile].shape[0] / boreal_buckets
 
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Boreal: ' + str(boreal_quantile))
@@ -560,7 +560,7 @@ def get_revisit_stats(specular_df, science_req):
         # Apply latitudes
         revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
         buckets = (360.0/0.1)*(120.0/0.1)
-        quantile = revisit_info['revisit'].quantile(0.90)
+        quantile = revisit_info['revisit'].quantile(0.99)
         coverage = revisit_info[revisit_info['revisit'] <= quantile].shape[0] / buckets
 
         print('######################################################################################')
@@ -575,7 +575,7 @@ def get_revisit_stats(specular_df, science_req):
         # Apply latitudes
         revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
         buckets = (360.0/0.1)*(120.0/0.1)
-        quantile = revisit_info['revisit'].quantile(0.90)
+        quantile = revisit_info['revisit'].quantile(0.99)
         coverage = revisit_info[revisit_info['revisit'] <= quantile].shape[0] / buckets
 
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile))
