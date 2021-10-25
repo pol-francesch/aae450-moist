@@ -364,7 +364,35 @@ def get_specular_points_single_trans_const(transmitters, trans_sma, time, recive
 
     return spec_df
 
-def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq):
+def get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, time_shape, desired_freq):
+    '''
+        Returns list of transmitter constellations in the desired frequency
+        List is list of 3D numpy arrays. Each numpy array contains a single transmitter constellation.
+        Each (:,:,i) corresponds to a transmitter in the constellation
+    '''
+    # Generate list of transmitter constellations
+    transmitter_constellations = []
+    trans_desired_sma = []
+
+    for i in range(len(trans_satNum)):
+        # Check if transmitters are in desired frequency. If not, just skip it
+        if trans_freq[i] not in desired_freq:
+            # Update start and then skip this transmitter constellation
+            start = start + trans_satNum[i]*2
+            continue
+
+        # Get transmitters into 3D numpy array. [:,:,i] where i refers to each satellite in transmitter constellation
+        transmitters = load_data(filename, columns=tuple(range(start, start+trans_satNum[i]*2)))
+        start = start + trans_satNum[i]*2
+        transmitters = np.radians(transmitters.reshape((time_shape,2,-1)))
+
+        transmitter_constellations = transmitter_constellations + [transmitters]
+        trans_desired_sma = trans_desired_sma + [trans_sma[i]]
+    
+    return transmitter_constellations, trans_desired_sma
+
+
+def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq):
     '''
         Function which given a file with transmitters and receivers LLA, can return the specular points.
         Built with multiprocessing in mind. You probably shouldn't run this outside of the servers...
@@ -383,38 +411,36 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
         start = start+rec_satNum[i]*2
     
     # Specular points dataframe
-    spec_df = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'theta2', 'theta3'])
+    spec_df_l_band = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'theta2', 'theta3'])
+    spec_df_p_band = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'theta2', 'theta3'])
+    spec_df_vhf_band = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'theta2', 'theta3'])
 
     # Generate list of transmitter constellations
-    transmitter_constellations = []
-
-    for i in range(len(trans_satNum)):
-        # Check if transmitters are in desired frequency. If not, just skip it
-        if trans_freq[i] not in desired_freq:
-            continue
-
-        # Get transmitters into 3D numpy array. [:,:,i] where i refers to each satellite in transmitter constellation
-        transmitters = load_data(filename, columns=tuple(range(start, start+trans_satNum[i]*2)))
-        start = start + trans_satNum[i]*2
-        transmitters = np.radians(transmitters.reshape((time.shape[0],2,-1)))
-
-        transmitter_constellations = transmitter_constellations + [transmitters]
+    transmitter_constellations_l_band, trans_sma_l_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, time.shape[0], 'l')
+    transmitter_constellations_p_band, trans_sma_p_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, time.shape[0], 'p')
+    transmitter_constellations_vhf_band, trans_sma_vhf_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, time.shape[0], 'vhf')
 
     # Get the specular points
     # Set up multiprocessing
     pool = mp.Pool()
-    results = pool.starmap(partial(get_specular_points_single_trans_const, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
-              zip(transmitter_constellations, trans_sma))
+    results_l_band = pool.starmap(partial(get_specular_points_single_trans_const, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
+              zip(transmitter_constellations_l_band, trans_sma_l_band))
+    results_p_band = pool.starmap(partial(get_specular_points_single_trans_const, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
+              zip(transmitter_constellations_p_band, trans_sma_p_band))
+    results_vhf_band = pool.starmap(partial(get_specular_points_single_trans_const, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
+              zip(transmitter_constellations_vhf_band, trans_sma_vhf_band))
     pool.close()
     pool.join()
-    if len(results) > 0:
-        spec_df = pd.concat(results)
 
-    # for i in range(len(transmitter_constellations)):
-    #     temp = get_specular_points_single_trans_const(time, recivers, transmitter_constellations[i], rec_sma, trans_sma[i], rec_satNum)
-    #     spec_df =  pd.concat([spec_df, temp])
+    # Join results
+    if len(results_l_band) > 0:
+        spec_df_l_band = pd.concat(results_l_band)
+    if len(results_p_band) > 0:
+        spec_df_p_band = pd.concat(results_p_band)
+    if len(results_vhf_band) > 0:
+        spec_df_vhf_band = pd.concat(results_vhf_band)
     
-    return spec_df
+    return spec_df_l_band, spec_df_p_band, spec_df_vhf_band
 
 def get_revisit_info(specular_df):
     print('Beginning revisit calculations')
@@ -592,6 +618,7 @@ def get_revisit_stats(specular_df, science_req):
         quantile = revisit_info['revisit'].quantile(0.99)
         coverage = revisit_info[revisit_info['revisit'] <= quantile].shape[0] / buckets
 
+        print('######################################################################################')
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile))
         print('Coverage for '+science_req+' Global: ' + str(coverage))
         print('Where there are this many samples: ' + str(revisit_info[revisit_info['revisit'] <= quantile].shape[0]) + ' out of this many buckets: ' + str(buckets))
@@ -671,37 +698,32 @@ if __name__ == '__main__':
     # trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['l','l']
+    # trans_freq = ['l','p']
 
     # SSM
     desired_freq = ['l']        
     science = 'SSM'
-    specular_df = get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    get_revisit_stats(specular_df, science)
+    specular_df_l_band, specular_df_p_band, specular_df_vhf_band = get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq)
+    get_revisit_stats(specular_df_l_band, science)
 
     # FTS
     desired_freq = ['l']        
     science = 'FTS'
-    # specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    get_revisit_stats(specular_df, science)
-    specular_l = specular_df
+    get_revisit_stats(specular_df_l_band, science)
 
     # SWE P band
     desired_freq = ['p']        
     science = 'SWE_P'
-    specular_df = get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    get_revisit_stats(specular_df, science)
+    get_revisit_stats(specular_df_p_band, science)
 
     # RZSM
     desired_freq = ['vhf']        
     science = 'RZSM'
-    specular_df_vhf = get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    specular_df = pd.concat([specular_df, specular_df_vhf])
+    specular_df = pd.concat([specular_df_p_band, specular_df_vhf_band])
     get_revisit_stats(specular_df, science)
 
     # SWE L band
     desired_freq = ['l']        
     science = 'SWE_L'
-    # specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    get_revisit_stats(specular_l, science)
+    get_revisit_stats(specular_df_l_band, science)
     
