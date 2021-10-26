@@ -10,49 +10,6 @@ from tqdm import tqdm
 '''
 EARTH_RADIUS = 6371.0
 
-def get_spec(rec, trans):
-    '''
-        Given reciever and transmitter location, return specular point.
-        Return empty array if no specular point is found.
-        Reciever and transmitter locations are in the order of 1.
-
-        Source: https://www.geometrictools.com/Documentation/SphereReflections.pdf
-    '''
-    global EARTH_RADIUS
-
-    # Break down the inputs
-    # data = data.tolist()
-    # rec = np.array(data[1:4]) / EARTH_RADIUS
-    # trans = np.array(data[4:7]) / EARTH_RADIUS
-
-    # Prework - dot products
-    a = np.sum(rec*rec, axis=1)
-    b = np.sum(rec*trans, axis=1)
-    c = np.sum(trans*trans, axis=1)
-
-    # Step 1
-    coeffs = [4*c*(a*c-b**2), -4*(a*c-b**2), a+2*b+c-4*a*c, 2*(a-b), a-1]
-    roots = np.roots(coeffs)
-    y = roots[roots > 0]
-
-    print(roots.shape)
-    print(rec.shape)
-    exit()
-    
-    if y.size == 0:
-        return np.array([])
-    
-    # Step 2
-    x = (-2*c*y**2 + y + 1) / (2*b*y + 1)
-
-    if x[x > 0].size == 0:
-        return np.array([])
-    i = np.argwhere(x > 0)[0][0]
-
-    spec = x[i]*rec + y[i]*trans
-
-    return spec*EARTH_RADIUS
-
 def lla_to_cart(latitude, longitude):     
     """
     Convert from latitude and longitude values to cartesian vector 

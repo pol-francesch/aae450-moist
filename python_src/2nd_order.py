@@ -13,6 +13,44 @@ def load_data(file_name, columns=None):
 
     return data
 
+def get_spec(recx, recy, recz, transx, transy, transz):
+    '''
+        Given reciever and transmitter location, return specular point.
+        Return empty array if no specular point is found.
+        Reciever and transmitter locations are in the order of 1.
+
+        Source: https://www.geometrictools.com/Documentation/SphereReflections.pdf
+    '''
+    global EARTH_RADIUS
+
+    # Break down the inputs
+    rec = np.array([recx, recy, recz]) / EARTH_RADIUS
+    trans = np.array([transx, transy, transz]) / EARTH_RADIUS
+
+    # Prework - dot products
+    a = np.sum(rec*rec)
+    b = np.sum(rec*trans)
+    c = np.sum(trans*trans)
+
+    # Step 1
+    coeffs = [4*c*(a*c-b**2), -4*(a*c-b**2), a+2*b+c-4*a*c, 2*(a-b), a-1]
+    roots = np.roots(coeffs)
+    y = roots[roots > 0]
+    
+    if y.size == 0:
+        return None
+    
+    # Step 2
+    x = (-2*c*y**2 + y + 1) / (2*b*y + 1)
+
+    if x[x > 0].size == 0:
+        return None
+    i = np.argwhere(x > 0)[0][0]
+
+    spec = (x[i]*rec + y[i]*trans)*EARTH_RADIUS
+
+    return spec[0], spec[1], spec[2]
+
 def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq):
     '''
         This does the same as get_spec_rec but faster.        
@@ -179,7 +217,7 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 temp_df['theta3'] = np.abs(np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))) * 180.0 / np.pi
                 
                 # Inclination angle is always < 60 deg (theta 1)
-                temp_df = temp_df[temp_df['theta1'] <= 60.0]
+                # temp_df = temp_df[temp_df['theta1'] <= 60.0]
                 # print(temp_df)
 
                 # Remove extra columns
@@ -364,6 +402,126 @@ def get_specular_points_single_trans_const(transmitters, trans_sma, time, recive
 
     return spec_df
 
+def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_sma, rec_satNum):
+    '''
+        Returns dataframe of specular points for receivers and ONE transmitter constellation.
+        Specially useful for parallel programming.
+        Uses this to calculate specular points: 
+        https://www.geometrictools.com/Documentation/SphereReflections.pdf
+    '''
+    print(mp.current_process().name + ' has started working.')
+    # Specular points dataframe
+    spec_df = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'theta2', 'theta3'])
+
+    # Vectorize the function
+    vfunc = np.vectorize(get_spec)
+
+    # Iterate thru transmitters in each shell
+    for i in range(transmitters.shape[2]):
+        transmitter = transmitters[:,:,i]
+        # Iterate thru the recievers shells
+        for j in range(len(recivers)):
+            receiver_shell = recivers[j]
+            # Iterate thru receivers in shell
+            for k in range(rec_satNum[j]):
+                reciver = np.radians(receiver_shell[:, k*2:k*2+2])
+
+                # ECEF of transmitter and receiver
+                trans_x = trans_sma * np.cos(transmitter[:,0]) * np.cos(transmitter[:,1])
+                trans_y = trans_sma * np.cos(transmitter[:,0]) * np.sin(transmitter[:,1])
+                trans_z = trans_sma * np.sin(transmitter[:,0])
+                
+                rec_x = rec_sma[j] * np.cos(reciver[:,0]) * np.cos(reciver[:,1])
+                rec_y = rec_sma[j] * np.cos(reciver[:,0]) * np.sin(reciver[:,1])
+                rec_z = rec_sma[j] * np.sin(reciver[:,0])
+                
+                # Get them goods
+                sp_x, sp_y, sp_z = vfunc(recx=rec_x, recy=rec_y, recz=rec_z, transx=trans_x, transy=trans_y, transz=trans_z)
+                
+                # Put it in a dataframe because that is easier to handle from now on
+                # There may be an issue here just fyi
+                # If you print the DF before you dropna, you will see some NaN for trans & rec. That doesn't make sense
+                temp_df = pd.DataFrame(columns=['Time', 'trans_lat', 'trans_lon', 'rec_lat', 'rec_lon'])
+                temp_df['Time'] = time/86400                    # in days
+                temp_df['trans_lat'] = transmitters[:,0]
+                temp_df['trans_lon'] = transmitters[:,1]
+                temp_df['rec_lat'] = reciver[:,0]
+                temp_df['rec_lon'] = reciver[:,1]
+
+                # Add in ECEF info as it is needed later
+                temp_df['spec_x'] = sp_x
+                temp_df['spec_y'] = sp_y
+                temp_df['spec_z'] = sp_z
+                temp_df['trans_x'] = trans_x
+                temp_df['trans_y'] = trans_y
+                temp_df['trans_z'] = trans_z
+                temp_df['rec_x'] = rec_x
+                temp_df['rec_y'] = rec_y
+                temp_df['rec_z'] = rec_z
+
+                temp_df = temp_df.dropna()                              # if no specular point, previous function returns none. Remove these entries
+
+                # Finally get the LL of the specular point fuck me
+                temp_df['Lat'] = np.arcsin(temp_df['spec_z'] / EARTH_RADIUS)
+                temp_df['Lon'] = np.arctan2(temp_df['spec_y'], temp_df['spec_x'])
+                
+                # Enforce the type
+                temp_df = temp_df.astype('float64')
+
+                # Apply science requirements            
+                #find r_sr, r_rt
+                #r_sr
+                temp_df['r_srx'] = temp_df['rec_x'] - temp_df['spec_x']
+                temp_df['r_sry'] = temp_df['rec_y'] - temp_df['spec_y']
+                temp_df['r_srz'] = temp_df['rec_z'] - temp_df['spec_z']
+
+                #r_rt
+                temp_df['r_rtx'] = temp_df['trans_x'] - temp_df['rec_x']
+                temp_df['r_rty'] = temp_df['trans_y'] - temp_df['rec_y']
+                temp_df['r_rtz'] = temp_df['trans_z'] - temp_df['rec_z']
+
+                #find thetas (for all names to the left of '=', coefficient 'r' left out, ex: r_rt made to be rt)
+                #theta1 (assumption of r_s constant?)
+                temp_df['dot_s_sr'] = temp_df['r_srx']*temp_df['spec_x'] + temp_df['r_sry']*temp_df['spec_y'] + temp_df['r_srz']*temp_df['spec_z'] 
+                temp_df['mag_sr'] = np.sqrt(np.square(temp_df['r_srx']) + np.square(temp_df['r_sry']) + np.square(temp_df['r_srz']))
+                
+                # Arcos is limited to [-1 1]. Due to numerical issues, sometimes our are slightly outside this range.
+                # Force them inside the range
+                temp_df['theta1_temp'] = temp_df['dot_s_sr'] / (temp_df['mag_sr']*EARTH_RADIUS)
+                temp_df['theta1_temp'].where(temp_df['theta1_temp'] <= 1.0, 1.0, inplace=True)
+                temp_df['theta1_temp'].where(temp_df['theta1_temp'] >= -1.0, -1.0, inplace=True)
+                temp_df['theta1'] = np.abs(np.arccos(temp_df['theta1_temp'])) * 180.0 / np.pi
+
+                #theta2
+                temp_df['dot_r_sr'] = temp_df['r_srx']*temp_df['rec_x'] + temp_df['r_sry']*temp_df['rec_y'] + temp_df['r_srz']*temp_df['rec_z'] 
+                temp_df['mag_r'] = np.sqrt(np.square(temp_df['rec_x']) + np.square(temp_df['rec_y']) + np.square(temp_df['rec_z']))
+                temp_df['theta2'] = np.abs(np.arccos(temp_df['dot_r_sr']/(temp_df['mag_r']*temp_df['mag_sr']))) * 180.0 / np.pi
+
+                #theta3
+                temp_df['dot_rt_r'] = temp_df['r_rtx']*temp_df['rec_x'] + temp_df['r_rty']*temp_df['rec_y'] + temp_df['r_rtz']*temp_df['rec_z'] 
+                temp_df['mag_rt'] = np.sqrt(np.square(temp_df['r_rtx']) + np.square(temp_df['r_rty']) + np.square(temp_df['r_rtz']))
+                temp_df['theta3'] = np.abs(np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))) * 180.0 / np.pi
+                
+                # Inclination angle is always < 60 deg (theta 1)
+                temp_df = temp_df[temp_df['theta1'] <= 60.0]
+
+                # Remove extra columns
+                keep    = ['Time', 'Lat', 'Lon', 'theta2', 'theta3']
+                extra   = [elem for elem in temp_df.columns.to_list() if elem not in keep]
+                temp_df = temp_df.drop(columns=extra)
+
+                # Transfer numpy array to list to get it to work well
+                # Transform to degrees while we're at it
+                temp_df['Lat'] = (temp_df['Lat']*180.0/np.pi).tolist()
+                temp_df['Lon'] = (temp_df['Lon']*180.0/np.pi).tolist()
+
+                # Append
+                spec_df = pd.concat([spec_df, temp_df])
+        
+    print(mp.current_process().name + ' has finished working.')
+
+    return spec_df
+
 def get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, time_shape, desired_freq):
     '''
         Returns list of transmitter constellations in the desired frequency
@@ -391,13 +549,13 @@ def get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma,
     
     return transmitter_constellations, trans_desired_sma
 
-
 def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq):
     '''
         Function which given a file with transmitters and receivers LLA, can return the specular points.
         Built with multiprocessing in mind. You probably shouldn't run this outside of the servers...
     '''
     global EARTH_RADIUS
+    print('Loading receivers & time...')
 
     # Get time
     time = load_data(filename, columns=tuple(range(0,1)))
@@ -416,18 +574,22 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     spec_df_vhf_band = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'theta2', 'theta3'])
 
     # Generate list of transmitter constellations
+    print('Loading transmitters...')
     transmitter_constellations_l_band, trans_sma_l_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, time.shape[0], 'l')
     transmitter_constellations_p_band, trans_sma_p_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, time.shape[0], 'p')
     transmitter_constellations_vhf_band, trans_sma_vhf_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, time.shape[0], 'vhf')
 
     # Get the specular points
     # Set up multiprocessing
+    print('Let\'s get this party started')
+    # specular_df = get_specular_points_fuck_titan(transmitter_constellations_p_band[0], trans_sma_p_band[0], time, recivers, rec_sma, rec_satNum)
+    # exit()
     pool = mp.Pool()
-    results_l_band = pool.starmap(partial(get_specular_points_single_trans_const, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
+    results_l_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
               zip(transmitter_constellations_l_band, trans_sma_l_band))
-    results_p_band = pool.starmap(partial(get_specular_points_single_trans_const, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
+    results_p_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
               zip(transmitter_constellations_p_band, trans_sma_p_band))
-    results_vhf_band = pool.starmap(partial(get_specular_points_single_trans_const, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
+    results_vhf_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
               zip(transmitter_constellations_vhf_band, trans_sma_vhf_band))
     pool.close()
     pool.join()
@@ -619,6 +781,7 @@ def get_revisit_stats(specular_df, science_req):
         coverage = revisit_info[revisit_info['revisit'] <= quantile].shape[0] / buckets
 
         print('######################################################################################')
+        print('Max latitude: ' + str(specular_df['Lat'].max()))
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile))
         print('Coverage for '+science_req+' Global: ' + str(coverage))
         print('Where there are this many samples: ' + str(revisit_info[revisit_info['revisit'] <= quantile].shape[0]) + ' out of this many buckets: ' + str(buckets))
@@ -698,7 +861,7 @@ if __name__ == '__main__':
     # trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['l','p']
+    # trans_freq = ['p','p']
 
     # SSM
     desired_freq = ['l']        
