@@ -643,6 +643,9 @@ def get_swe_100m(specular_df):
     specular_df = specular_df.groupby(['approx_LatSp', 'approx_LonSp'])
 
     total_100m = 0
+    total_200m = 0
+    total_300m = 0
+    total_400m = 0
     total_500m = 0
     total_1km  = 0
     buckets = (360.0*1.0)*(140.0*1.0)
@@ -656,15 +659,22 @@ def get_swe_100m(specular_df):
 
             row_mins = row_mins + [minimum]
         array = np.array(row_mins)
-        # print(array)
-        # print('Should have this -1: ' + str(group.shape[0]) + ' but it has: ' + str(array.size))
 
         m_100 = array[array < 0.1]
+        m_200 = array[array < 0.2]
+        m_300 = array[array < 0.3]
+        m_400 = array[array < 0.4]
         m_500 = array[array < 0.5]
         km_1  = array[array < 1.0]
 
         if m_100.size > 0:
             total_100m = total_100m + 1
+        if m_200.size > 0:
+            total_200m = total_200m + 1
+        if m_300.size > 0:
+            total_300m = total_300m + 1
+        if m_400.size > 0:
+            total_400m = total_400m + 1
         if m_500.size > 0:
             total_500m = total_500m + 1    
         if km_1.size > 0:
@@ -673,6 +683,15 @@ def get_swe_100m(specular_df):
     print('######################################################################################')
     print('Amount of SWE 100m passes: ' + str(total_100m))
     print('Coverage of SWE 100m passes: '+ str(total_100m/buckets))
+
+    print('Amount of SWE 200m passes: ' + str(total_200m))
+    print('Coverage of SWE 200m passes: '+ str(total_200m/buckets))
+
+    print('Amount of SWE 300m passes: ' + str(total_300m))
+    print('Coverage of SWE 300m passes: '+ str(total_300m/buckets))
+
+    print('Amount of SWE 400m passes: ' + str(total_400m))
+    print('Coverage of SWE 400m passes: '+ str(total_400m/buckets))
 
     print('Amount of SWE 500m passes: ' + str(total_500m))
     print('Coverage of SWE 500m passes: '+ str(total_500m/buckets))
@@ -790,6 +809,28 @@ def get_revisit_stats(specular_df, science_req):
     else:
         print('Not a known science requirement type')
 
+def save_specular(specular_df, savefile_start, savefile_end):
+    '''
+        Saves a specular point dataframe with the given name and directory
+    '''
+    savefilename = savefile_start + savefile_end
+    specular_df.to_csv(savefilename, header=None, index=None, sep=' ', mode='w')
+
+def load_specular(filename):
+    '''
+        Loads specular DF that was generated using this script
+    '''
+    column_names = ['Time', 'Lat', 'Lon', 'theta2', 'theta3']
+
+    try:
+        data = pd.read_csv(filename, sep=" ", header=None)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame(columns=column_names)
+
+    data.columns = column_names
+
+    return data
+
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
@@ -798,6 +839,9 @@ if __name__ == '__main__':
     # filename = '/home/polfr/Documents/dummy_data/15day_15s_orbit_blueTeam.txt'
     filename = '/home/polfr/Documents/dummy_data/10_06_2021_GMAT/Unzipped/ReportFile1_TestforPol.txt'
     filename = '/home/polfr/Documents/dummy_data/test_data.txt'
+
+    # Save file - used for loading and saving specular points
+    savefile_start = '/home/polfr/Documents/dummy_data/specular_points_blueTeam_15day_1s_'
     
     # Receiver information
     rec_sma = [EARTH_RADIUS+350, EARTH_RADIUS+550]
@@ -863,10 +907,28 @@ if __name__ == '__main__':
     # Frequency of each transmitter constellation
     # trans_freq = ['p','p']
 
+    # Get the specular points
+    # By recalculating
+    if True:
+        print('Generating specular points')
+        specular_df_l_band, specular_df_p_band, specular_df_vhf_band = get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq)
+    # By loading them
+    else:
+        print('Getting specular points from file')
+        specular_df_l_band = load_specular(savefile_start+'Lband.txt')
+        specular_df_p_band = load_specular(savefile_start+'Pband.txt')
+        specular_df_vhf_band = load_specular(savefile_start+'VHFband.txt')
+
+    # Save the specular points
+    if True:
+        print('Saving specular points to file')
+        save_specular(specular_df_l_band, savefile_start, 'Lband.txt')
+        save_specular(specular_df_p_band, savefile_start, 'Pband.txt')
+        save_specular(specular_df_vhf_band, savefile_start, 'VHFband.txt')
+
     # SSM
     desired_freq = ['l']        
     science = 'SSM'
-    specular_df_l_band, specular_df_p_band, specular_df_vhf_band = get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq)
     get_revisit_stats(specular_df_l_band, science)
 
     # FTS
