@@ -774,6 +774,7 @@ def get_revisit_stats(specular_df, science_req):
         global_buckets = np.delete(grid, np.where(grid[:,0] > 50)[0], axis=0).shape[0]
         global_quantile_50 = global_rev['revisit'].quantile(0.50)
         global_quantile_99 = global_rev['revisit'].quantile(0.99)
+        global_std = global_rev['revisit'].std()
         global_coverage = global_rev[global_rev['revisit'] <= global_quantile_99].shape[0] / global_buckets
 
         print('######################################################################################')
@@ -781,6 +782,7 @@ def get_revisit_stats(specular_df, science_req):
         print('Surface Soil Moisture (SSM): L-Band Frequency' if science_req=='SSM' else 'Root Zone Soil Moisture (RZSM):P-Band & VHF Frequency')
         print('50.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile_50))
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile_99))        
+        print('Standard Deviation of Max Revisit for '+science_req+' Global: ' + str(global_std))
         print('Coverage for '+science_req+' Global: ' + str(global_coverage))
         print('Where there are this many samples: ' + str(global_rev[global_rev['revisit'] <= global_quantile_99].shape[0]) + ' out of this many buckets: ' + str(global_buckets))
 
@@ -790,10 +792,12 @@ def get_revisit_stats(specular_df, science_req):
         boreal_buckets = np.delete(grid, np.where(grid[:,0] < 50)[0], axis=0).shape[0]
         boreal_quantile_50 = boreal['revisit'].quantile(0.50)
         boreal_quantile_99 = boreal['revisit'].quantile(0.99)
+        boreal_std = boreal['revisit'].std()
         boreal_coverage = boreal[boreal['revisit'] <= boreal_quantile_99].shape[0] / boreal_buckets
 
-        print('50.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(boreal_quantile_50))
+        print('50.0 Percentile of Maximum Revisit for '+science_req+' Boreal: ' + str(boreal_quantile_50))
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Boreal: ' + str(boreal_quantile_99))
+        print('Standard Deviation of Max Revisit for '+science_req+' Boreal: ' + str(boreal_std))
         print('Coverage for '+science_req+' Boreal: ' + str(boreal_coverage))
         print('Where there are this many samples: ' + str(boreal[boreal['revisit'] <= boreal_quantile_99].shape[0]) + ' out of this many buckets: ' + str(boreal_buckets))
         print('######################################################################################')
@@ -809,14 +813,16 @@ def get_revisit_stats(specular_df, science_req):
         buckets = grid.shape[0]
         quantile_50 = revisit_info['revisit'].quantile(0.50)
         quantile_99 = revisit_info['revisit'].quantile(0.99)
+        revisit_std = revisit_info['revisit'].std()
         coverage = revisit_info[revisit_info['revisit'] <= quantile_99].shape[0] / buckets
 
         print('######################################################################################')
         print('Max latitude: ' + str(specular_df['Lat'].max()))
         print('Freeze-Thaw State (F/T): L-Band Frequency')
-        print('50.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile_50))
-        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile_99))
-        print('Coverage for '+science_req+' Global: ' + str(coverage))
+        print('50.0 Percentile of Maximum Revisit for '+science_req+': ' + str(quantile_50))
+        print('99.0 Percentile of Maximum Revisit for '+science_req+': ' + str(quantile_99))
+        print('Standard Deviation of Max Revisit for '+science_req+': ' + str(revisit_std))
+        print('Coverage for '+science_req+': ' + str(coverage))
         print('Where there are this many samples: ' + str(revisit_info[revisit_info['revisit'] <= quantile_99].shape[0]) + ' out of this many buckets: ' + str(buckets))
         print('######################################################################################')
 
@@ -833,14 +839,16 @@ def get_revisit_stats(specular_df, science_req):
         buckets = grid.shape[0]
         quantile_50 = revisit_info['revisit'].quantile(0.50)
         quantile_99 = revisit_info['revisit'].quantile(0.99)
+        revisit_std = revisit_info['revisit'].std()
         coverage = revisit_info[revisit_info['revisit'] <= quantile_99].shape[0] / buckets
 
         print('######################################################################################')
         print('Max latitude: ' + str(specular_df['Lat'].max()))
         print('Snow-Water Equivalent (SWE): P-Band Frequency')
+        print('Standard Deviation of Max Revisit for '+science_req+': ' + str(revisit_std))
         print('50.0 Percentile of Maximum Revisit for '+science_req+': ' + str(quantile_50))
         print('99.0 Percentile of Maximum Revisit for '+science_req+': ' + str(quantile_99))
-        print('Coverage for '+science_req+' Global: ' + str(coverage))
+        print('Coverage for '+science_req+': ' + str(coverage))
         print('Where there are this many samples: ' + str(revisit_info[revisit_info['revisit'] <= quantile_99].shape[0]) + ' out of this many buckets: ' + str(buckets))
         print('######################################################################################')
         
