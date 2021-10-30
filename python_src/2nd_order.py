@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import multiprocessing as mp
 from functools import partial
+from scipy.spatial import KDTree
 
-EARTH_RADIUS = 6371.0
+EARTH_RADIUS = 6371.009
 
 def load_data(file_name, columns=None):
     data = np.loadtxt(file_name, skiprows=0, usecols=columns)
@@ -604,11 +605,18 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     
     return spec_df_l_band, spec_df_p_band, spec_df_vhf_band
 
-def get_revisit_info(specular_df):
+def get_revisit_info(specular_df, resolution=10, max_lat=70):
     print('Beginning revisit calculations')
-    # Round lat and long and then use groupby to throw them all in similar buckets
-    specular_df['approx_LatSp'] = round(specular_df['Lat'],1)
-    specular_df['approx_LonSp'] = round(specular_df['Lon'],1)
+    # Better estimate to fit points to a grid
+    # Generate grid and get indeces for each specular point that matches grid element
+    grid = create_earth_grid(resolution, max_lat)
+    points = np.c_[specular_df['Lat'], specular_df['Lon']]
+    tree = KDTree(grid)
+    _, indices = tree.query(points)
+
+    # Get estimated latitude and longitude based on resolution
+    specular_df['approx_LatSp'] = grid[indices, 0]
+    specular_df['approx_LonSp'] = grid[indices, 0]
 
     # Calculate time difference
     specular_df.sort_values(by=['approx_LatSp', 'approx_LonSp', 'Time'], inplace=True)
@@ -632,11 +640,17 @@ def get_swe_100m(specular_df):
     global EARTH_RADIUS
 
     print('Beginning SWE 100m revisit calculations')
-    # Round lat and long to 1 deg
-    specular_df['approx_LatSp'] = round(specular_df['Lat'])
-    specular_df['approx_LonSp'] = round(specular_df['Lon'])
+    # Generate grid and get indeces for each specular point that matches grid element
+    specular_df = specular_df[specular_df['Lat'] <= 70.0]
 
-    specular_df = specular_df[specular_df['approx_LatSp'] <= 70.0]
+    grid = create_earth_grid(resolution=100, max_lat=70)
+    points = np.c_[specular_df['Lat'], specular_df['Lon']]
+    tree = KDTree(grid)
+    _, indices = tree.query(points)
+
+    # Get estimated latitude and longitude based on resolution
+    specular_df['approx_LatSp'] = grid[indices, 0]
+    specular_df['approx_LonSp'] = grid[indices, 0]
 
     # Calculate time difference
     # specular_df.sort_values(by=['approx_LatSp', 'approx_LonSp', 'Time'], inplace=True)
@@ -738,72 +752,88 @@ def apply_science_angles(specular_df, science_req='SSM'):
 def get_revisit_stats(specular_df, science_req):
     # Apply angle requirements
     specular_df = apply_science_angles(specular_df, science_req)
-    # Get revisit
-    revisit_info = get_revisit_info(specular_df)
 
     # Total amount of lat lon squares possible (0.1x0.1 deg grid)
     amt_buckets = (360.0*0.1)*(180.0*0.1)
 
     # Get revisit stats based on science requirements
     if science_req == 'SSM' or science_req == 'RZSM':
+        # Get revisit
+        specular_df = specular_df[specular_df['Lat'] <= 70.0]
+
+        if science_req == 'SSM':
+            revisit_info = get_revisit_info(specular_df, resolution=10, max_lat=70)
+        elif science_req == 'RZSM':
+            revisit_info = get_revisit_info(specular_df, resolution=40, max_lat=70)
+
         # Global
         global_rev = revisit_info[revisit_info['approx_LatSp'] <= 50.0]
         global_buckets = (360.0/0.1)*(100.0/0.1)
-        global_quantile = global_rev['revisit'].quantile(0.99)
-        global_coverage = global_rev[global_rev['revisit'] <= global_quantile].shape[0] / global_buckets
+        global_quantile_50 = global_rev['revisit'].quantile(0.50)
+        global_quantile_99 = global_rev['revisit'].quantile(0.99)
+        global_coverage = global_rev[global_rev['revisit'] <= global_quantile_99].shape[0] / global_buckets
 
         print('######################################################################################')
-        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile))
+        print('Max latitude: ' + str(specular_df['Lat'].max()))
+        print('50.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile_50))
+        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile_99))        
         print('Coverage for '+science_req+' Global: ' + str(global_coverage))
-        print('Where there are this many samples: ' + str(global_rev[global_rev['revisit'] <= global_quantile].shape[0]) + ' out of this many buckets: ' + str(global_buckets))
+        print('Where there are this many samples: ' + str(global_rev[global_rev['revisit'] <= global_quantile_99].shape[0]) + ' out of this many buckets: ' + str(global_buckets))
 
         # Boreal forest
         boreal = revisit_info[revisit_info['approx_LatSp'] <= 70.0]
         boreal = boreal[boreal['approx_LatSp'] >= 50.0]
         boreal_buckets = (360.0/0.1)*(40.0/0.1)
-        boreal_quantile = boreal['revisit'].quantile(0.99)
-        boreal_coverage = boreal[boreal['revisit'] <= boreal_quantile].shape[0] / boreal_buckets
+        boreal_quantile_50 = boreal['revisit'].quantile(0.50)
+        boreal_quantile_99 = boreal['revisit'].quantile(0.99)
+        boreal_coverage = boreal[boreal['revisit'] <= boreal_quantile_99].shape[0] / boreal_buckets
 
-        global_spec = specular_df[specular_df['Lat'] <= 50.0]
-
-        boreal_spec = specular_df[specular_df['Lat'] <= 70.0]
-        boreal_spec = boreal_spec[boreal_spec['Lat'] >= 50.0]
-
-        print('Number of specular points in global forest: ' + str(global_spec.shape[0]))
-        print('Number of specular points in boreal forest: ' + str(boreal_spec.shape[0]))
-        print('Max latitude: ' + str(specular_df['Lat'].max()))
-        print('99.0 Percentile of Maximum Revisit for '+science_req+' Boreal: ' + str(boreal_quantile))
+        print('50.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(boreal_quantile_50))
+        print('99.0 Percentile of Maximum Revisit for '+science_req+' Boreal: ' + str(boreal_quantile_99))
         print('Coverage for '+science_req+' Boreal: ' + str(boreal_coverage))
-        print('Where there are this many samples: ' + str(boreal[boreal['revisit'] <= boreal_quantile].shape[0]) + ' out of this many buckets: ' + str(boreal_buckets))
+        print('Where there are this many samples: ' + str(boreal[boreal['revisit'] <= boreal_quantile_99].shape[0]) + ' out of this many buckets: ' + str(boreal_buckets))
         print('######################################################################################')
 
     elif science_req == 'FTS':
+        # Get revisit
+        specular_df = specular_df[specular_df['Lat'] <= 60.0]
+        revisit_info = get_revisit_info(specular_df, resolution=3, max_lat=60)
+
         # Apply latitudes
         revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
         buckets = (360.0/0.1)*(120.0/0.1)
-        quantile = revisit_info['revisit'].quantile(0.99)
-        coverage = revisit_info[revisit_info['revisit'] <= quantile].shape[0] / buckets
+        quantile_50 = revisit_info['revisit'].quantile(0.50)
+        quantile_99 = revisit_info['revisit'].quantile(0.99)
+        coverage = revisit_info[revisit_info['revisit'] <= quantile_99].shape[0] / buckets
 
         print('######################################################################################')
-        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile))
+        print('Max latitude: ' + str(specular_df['Lat'].max()))
+        print('50.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile_50))
+        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile_99))
         print('Coverage for '+science_req+' Global: ' + str(coverage))
-        print('Where there are this many samples: ' + str(revisit_info[revisit_info['revisit'] <= quantile].shape[0]) + ' out of this many buckets: ' + str(buckets))
+        print('Where there are this many samples: ' + str(revisit_info[revisit_info['revisit'] <= quantile_99].shape[0]) + ' out of this many buckets: ' + str(buckets))
         print('######################################################################################')
 
     elif science_req == 'SWE_L':
         get_swe_100m(specular_df)
     elif science_req == 'SWE_P':
+        # Get revisit
+        specular_df = specular_df[specular_df['Lat'] <= 60.0]
+        revisit_info = get_revisit_info(specular_df, resolution=100, max_lat=60)
+
         # Apply latitudes
         revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
         buckets = (360.0/0.1)*(120.0/0.1)
-        quantile = revisit_info['revisit'].quantile(0.99)
-        coverage = revisit_info[revisit_info['revisit'] <= quantile].shape[0] / buckets
+        quantile_50 = revisit_info['revisit'].quantile(0.50)
+        quantile_99 = revisit_info['revisit'].quantile(0.99)
+        coverage = revisit_info[revisit_info['revisit'] <= quantile_99].shape[0] / buckets
 
         print('######################################################################################')
         print('Max latitude: ' + str(specular_df['Lat'].max()))
-        print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile))
+        print('50.0 Percentile of Maximum Revisit for '+science_req+': ' + str(quantile_50))
+        print('99.0 Percentile of Maximum Revisit for '+science_req+': ' + str(quantile_99))
         print('Coverage for '+science_req+' Global: ' + str(coverage))
-        print('Where there are this many samples: ' + str(revisit_info[revisit_info['revisit'] <= quantile].shape[0]) + ' out of this many buckets: ' + str(buckets))
+        print('Where there are this many samples: ' + str(revisit_info[revisit_info['revisit'] <= quantile_99].shape[0]) + ' out of this many buckets: ' + str(buckets))
         print('######################################################################################')
         
     else:
@@ -830,6 +860,35 @@ def load_specular(filename):
     data.columns = column_names
 
     return data
+
+def create_earth_grid(resolution, max_lat):
+    '''
+        Given a resolution in km, returns 2D array of latitude and longitude.
+        Takes into account the non-square shape of grid elements.
+    '''
+    lat_km2deg = 110.574
+    lon_km2deg = 111.320
+    # Latitude is eazy peazy lemon squeezy
+    dlat = resolution / lat_km2deg
+    lats = np.arange(-max_lat, max_lat, step=dlat)
+
+    grid = []
+    
+    # Longitude is a bit harder daddy
+    for lat in lats:
+        # Get longitudes at this latitude
+        dlon = resolution / lon_km2deg * np.cos(np.deg2rad(lat))
+        lons = np.arange(-180.0, 180.0, dlon)
+
+        # Join them together
+        same_lat = lat * np.ones_like(lons)
+        temp = np.array((same_lat, lons)).T
+        grid = grid + [temp]
+    
+    # Join the list
+    grid_joined = np.concatenate(grid)
+    
+    return grid_joined
 
 if __name__ == '__main__':
     # Preliminary information
@@ -909,7 +968,7 @@ if __name__ == '__main__':
 
     # Get the specular points
     # By recalculating
-    if True:
+    if False:
         print('Generating specular points')
         specular_df_l_band, specular_df_p_band, specular_df_vhf_band = get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq)
     # By loading them
@@ -920,7 +979,7 @@ if __name__ == '__main__':
         specular_df_vhf_band = load_specular(savefile_start+'VHFband.txt')
 
     # Save the specular points
-    if True:
+    if False:
         print('Saving specular points to file')
         save_specular(specular_df_l_band, savefile_start, 'Lband.txt')
         save_specular(specular_df_p_band, savefile_start, 'Pband.txt')
