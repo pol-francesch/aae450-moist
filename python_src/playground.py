@@ -23,9 +23,13 @@ grid = np.c_[X.ravel(), Y.ravel()]
 print(grid.shape)
 points = np.c_[df_points.x, df_points.y]
 print(points.shape)
-print(points)
 tree = KDTree(grid)
 dist, indices = tree.query(points)
 lat_est = grid[indices, 0]
 print(indices.shape)
 print(lat_est.shape)
+
+# WHat is happening here
+print(points[0,0])
+print(lat_est[0])
+print(grid)

@@ -605,18 +605,21 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     
     return spec_df_l_band, spec_df_p_band, spec_df_vhf_band
 
-def get_revisit_info(specular_df, resolution=10, max_lat=70):
+def get_revisit_info(specular_df, grid):
     print('Beginning revisit calculations')
+    # Round lat and long and then use groupby to throw them all in similar buckets
+    # specular_df['approx_LatSp'] = round(specular_df['Lat'],1)
+    # specular_df['approx_LonSp'] = round(specular_df['Lon'],1)
+
     # Better estimate to fit points to a grid
     # Generate grid and get indeces for each specular point that matches grid element
-    grid = create_earth_grid(resolution, max_lat)
     points = np.c_[specular_df['Lat'], specular_df['Lon']]
     tree = KDTree(grid)
     _, indices = tree.query(points)
 
     # Get estimated latitude and longitude based on resolution
     specular_df['approx_LatSp'] = grid[indices, 0]
-    specular_df['approx_LonSp'] = grid[indices, 0]
+    specular_df['approx_LonSp'] = grid[indices, 1]
 
     # Calculate time difference
     specular_df.sort_values(by=['approx_LatSp', 'approx_LonSp', 'Time'], inplace=True)
@@ -662,7 +665,7 @@ def get_swe_100m(specular_df):
     total_400m = 0
     total_500m = 0
     total_1km  = 0
-    buckets = (360.0*1.0)*(140.0*1.0)
+    buckets = grid.shape[0]
 
     for name, group in specular_df:
         row_mins = []
@@ -695,6 +698,7 @@ def get_swe_100m(specular_df):
             total_1km = total_1km + 1     
     
     print('######################################################################################')
+    print('Snow-Water Equivalent (SWE): L-Band Frequency')
     print('Amount of SWE 100m passes: ' + str(total_100m))
     print('Coverage of SWE 100m passes: '+ str(total_100m/buckets))
 
@@ -753,28 +757,28 @@ def get_revisit_stats(specular_df, science_req):
     # Apply angle requirements
     specular_df = apply_science_angles(specular_df, science_req)
 
-    # Total amount of lat lon squares possible (0.1x0.1 deg grid)
-    amt_buckets = (360.0*0.1)*(180.0*0.1)
-
     # Get revisit stats based on science requirements
     if science_req == 'SSM' or science_req == 'RZSM':
         # Get revisit
         specular_df = specular_df[specular_df['Lat'] <= 70.0]
 
         if science_req == 'SSM':
-            revisit_info = get_revisit_info(specular_df, resolution=10, max_lat=70)
+            grid = create_earth_grid(resolution=10, max_lat=70)
+            revisit_info = get_revisit_info(specular_df, grid=grid)
         elif science_req == 'RZSM':
-            revisit_info = get_revisit_info(specular_df, resolution=40, max_lat=70)
+            grid = create_earth_grid(resolution=40, max_lat=70)
+            revisit_info = get_revisit_info(specular_df, grid=grid)
 
         # Global
         global_rev = revisit_info[revisit_info['approx_LatSp'] <= 50.0]
-        global_buckets = (360.0/0.1)*(100.0/0.1)
+        global_buckets = np.delete(grid, np.where(grid[:,0] > 50)[0], axis=0).shape[0]
         global_quantile_50 = global_rev['revisit'].quantile(0.50)
         global_quantile_99 = global_rev['revisit'].quantile(0.99)
         global_coverage = global_rev[global_rev['revisit'] <= global_quantile_99].shape[0] / global_buckets
 
         print('######################################################################################')
         print('Max latitude: ' + str(specular_df['Lat'].max()))
+        print('Surface Soil Moisture (SSM): L-Band Frequency' if science_req=='SSM' else 'Root Zone Soil Moisture (RZSM):P-Band & VHF Frequency')
         print('50.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile_50))
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(global_quantile_99))        
         print('Coverage for '+science_req+' Global: ' + str(global_coverage))
@@ -783,7 +787,7 @@ def get_revisit_stats(specular_df, science_req):
         # Boreal forest
         boreal = revisit_info[revisit_info['approx_LatSp'] <= 70.0]
         boreal = boreal[boreal['approx_LatSp'] >= 50.0]
-        boreal_buckets = (360.0/0.1)*(40.0/0.1)
+        boreal_buckets = np.delete(grid, np.where(grid[:,0] < 50)[0], axis=0).shape[0]
         boreal_quantile_50 = boreal['revisit'].quantile(0.50)
         boreal_quantile_99 = boreal['revisit'].quantile(0.99)
         boreal_coverage = boreal[boreal['revisit'] <= boreal_quantile_99].shape[0] / boreal_buckets
@@ -797,17 +801,19 @@ def get_revisit_stats(specular_df, science_req):
     elif science_req == 'FTS':
         # Get revisit
         specular_df = specular_df[specular_df['Lat'] <= 60.0]
-        revisit_info = get_revisit_info(specular_df, resolution=3, max_lat=60)
+        grid = create_earth_grid(resolution=3, max_lat=60)
+        revisit_info = get_revisit_info(specular_df, grid=grid)
 
         # Apply latitudes
         revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
-        buckets = (360.0/0.1)*(120.0/0.1)
+        buckets = grid.shape[0]
         quantile_50 = revisit_info['revisit'].quantile(0.50)
         quantile_99 = revisit_info['revisit'].quantile(0.99)
         coverage = revisit_info[revisit_info['revisit'] <= quantile_99].shape[0] / buckets
 
         print('######################################################################################')
         print('Max latitude: ' + str(specular_df['Lat'].max()))
+        print('Freeze-Thaw State (F/T): L-Band Frequency')
         print('50.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile_50))
         print('99.0 Percentile of Maximum Revisit for '+science_req+' Global: ' + str(quantile_99))
         print('Coverage for '+science_req+' Global: ' + str(coverage))
@@ -819,17 +825,19 @@ def get_revisit_stats(specular_df, science_req):
     elif science_req == 'SWE_P':
         # Get revisit
         specular_df = specular_df[specular_df['Lat'] <= 60.0]
-        revisit_info = get_revisit_info(specular_df, resolution=100, max_lat=60)
+        grid = create_earth_grid(resolution=100, max_lat=60)
+        revisit_info = get_revisit_info(specular_df, grid=grid)
 
         # Apply latitudes
         revisit_info = revisit_info[revisit_info['approx_LatSp'] <= 60.0]
-        buckets = (360.0/0.1)*(120.0/0.1)
+        buckets = grid.shape[0]
         quantile_50 = revisit_info['revisit'].quantile(0.50)
         quantile_99 = revisit_info['revisit'].quantile(0.99)
         coverage = revisit_info[revisit_info['revisit'] <= quantile_99].shape[0] / buckets
 
         print('######################################################################################')
         print('Max latitude: ' + str(specular_df['Lat'].max()))
+        print('Snow-Water Equivalent (SWE): P-Band Frequency')
         print('50.0 Percentile of Maximum Revisit for '+science_req+': ' + str(quantile_50))
         print('99.0 Percentile of Maximum Revisit for '+science_req+': ' + str(quantile_99))
         print('Coverage for '+science_req+' Global: ' + str(coverage))
@@ -893,14 +901,12 @@ def create_earth_grid(resolution, max_lat):
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
-    filename = '/home/polfr/Downloads/15day_2orbit_blueTeam.txt'
-    filename = '/home/polfr/Documents/test_data.txt'
-    # filename = '/home/polfr/Documents/dummy_data/15day_15s_orbit_blueTeam.txt'
     filename = '/home/polfr/Documents/dummy_data/10_06_2021_GMAT/Unzipped/ReportFile1_TestforPol.txt'
-    filename = '/home/polfr/Documents/dummy_data/test_data.txt'
+    # filename = '/home/polfr/Documents/dummy_data/test_data.txt'
 
     # Save file - used for loading and saving specular points
     savefile_start = '/home/polfr/Documents/dummy_data/specular_points_blueTeam_15day_1s_'
+    savefile_start = '/home/polfr/Documents/dummy_data/10_06_2021_GMAT/Unzipped/specular_points_MUOS_3day_1s_'
     
     # Receiver information
     rec_sma = [EARTH_RADIUS+350, EARTH_RADIUS+550]
