@@ -10,7 +10,7 @@ from scipy.spatial import KDTree
 EARTH_RADIUS = 6371.009
 
 def load_data(file_name, columns=None):
-    data = np.loadtxt(file_name, skiprows=1, usecols=columns)
+    data = np.loadtxt(file_name, skiprows=0, usecols=columns)
 
     return data
 
@@ -678,17 +678,17 @@ if __name__ == '__main__':
                  6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    rec_sma = [EARTH_RADIUS + 450]
-    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    # rec_sma = [EARTH_RADIUS + 450]
+    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
     # Number of sats per constellation
     # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
     # Same order as trans_sma
-    rec_satNum   = [1]
-    trans_satNum = [2,2]
+    # rec_satNum   = [1]
+    # trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    trans_freq = ['p','l']
+    # trans_freq = ['p','p']
 
     # Get the specular points
     # By recalculating
