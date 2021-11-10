@@ -1,11 +1,11 @@
+from operator import pos
 import pandas as pd 
 import numpy as np
-from Alhazen_Plotemy import branchdeducing_twofinite
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 import multiprocessing as mp
 from functools import partial
 from scipy.spatial import KDTree
+from fqs.fqs import quartic_roots
 
 EARTH_RADIUS = 6371.009
 
@@ -52,6 +52,53 @@ def get_spec(recx, recy, recz, transx, transy, transz):
 
     return spec[0], spec[1], spec[2]
 
+def get_spec_vectorized(recx, recy, recz, transx, transy, transz):
+    '''
+        Given reciever and transmitter location, return specular point.
+        Return empty element if no specular point is found.
+        This is for a time series.
+
+        Source: https://www.geometrictools.com/Documentation/SphereReflections.pdf
+    '''
+    global EARTH_RADIUS
+
+    # Break down inputs
+    rec = np.array([recx, recy, recz]).T / EARTH_RADIUS
+    trans = np.array([transx, transy, transz]).T / EARTH_RADIUS
+    
+    # Prework - dot products
+    a = np.einsum('ij,ij->i', rec, rec)
+    b = np.einsum('ij,ij->i', rec, trans)
+    c = np.einsum('ij,ij->i', trans, trans)
+
+    # Step 1
+    coeffs = np.array([4*c*(a*c-b**2), -4*(a*c-b**2), a+2*b+c-4*a*c, 2*(a-b), a-1]).T
+    roots  = quartic_roots(coeffs)
+
+    # Remove elements without positive roots
+    y = roots[roots > 0].reshape((roots.shape[0],-1))
+
+    # Step 2
+    b = b[:, np.newaxis]
+    c = c[:, np.newaxis]
+    x = (-2*c*y**2 + y + 1) / (2*b*y + 1)
+
+    # Pick x and y for which both x and y are > 0
+    positive = x > 0
+    y = y[positive][:, np.newaxis]
+    x = x[positive][:, np.newaxis]
+
+    spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
+
+    # print(rec.shape)
+    # print(a.shape)
+    # print(coeffs.shape)
+    # print(y.shape)
+    # print(x.shape)
+    # print(spec.shape)
+
+    return spec[:,0], spec[:,1], spec[:,2]
+
 def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_sma, rec_satNum):
     '''
         Returns dataframe of specular points for receivers and ONE transmitter constellation.
@@ -86,11 +133,10 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
                 rec_z = rec_sma[j] * np.sin(reciver[:,0])
                 
                 # Get them goods
-                sp_x, sp_y, sp_z = vfunc(recx=rec_x, recy=rec_y, recz=rec_z, transx=trans_x, transy=trans_y, transz=trans_z)
+                sp_x, sp_y, sp_z = get_spec_vectorized(rec_x, rec_y, rec_z, trans_x, trans_y, trans_z)
+                # sp_x, sp_y, sp_z = vfunc(recx=rec_x, recy=rec_y, recz=rec_z, transx=trans_x, transy=trans_y, transz=trans_z)
                 
                 # Put it in a dataframe because that is easier to handle from now on
-                # There may be an issue here just fyi
-                # If you print the DF before you dropna, you will see some NaN for trans & rec. That doesn't make sense
                 temp_df = pd.DataFrame(columns=['Time', 'trans_lat', 'trans_lon', 'rec_lat', 'rec_lon'])
                 temp_df['Time'] = time/86400                    # in days
                 temp_df['trans_lat'] = transmitters[:,0]
@@ -688,11 +734,11 @@ if __name__ == '__main__':
     # trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['p','p']
+    # trans_freq = ['l','p']
 
-    # Get the specular points
+    # Get the specular points...
     # By recalculating
-    if False:
+    if True:
         print('Generating specular points')
         specular_df_l_band, specular_df_p_band, specular_df_vhf_band = get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq)
     # By loading them
@@ -703,7 +749,7 @@ if __name__ == '__main__':
         specular_df_vhf_band = load_specular(savefile_start+'VHFband.txt')
 
     # Save the specular points
-    if True:
+    if False:
         print('Saving specular points to file')
         save_specular(specular_df_l_band, savefile_start, 'Lband.txt')
         save_specular(specular_df_p_band, savefile_start, 'Pband.txt')
