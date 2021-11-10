@@ -7,11 +7,15 @@ def load_data(file_name, rows=0):
 
     return data
 
-def interpolation(transmitters, dt=1, days=15):
+def interpolation(transmitters, dt=1, days=15, dt_in=False):
     # Generate time list (in days) of interval 1 second
     gran_time = np.linspace(0, days*24*3600, int(days*24*3600 / dt))
 
-    time = transmitters[:,0]
+    if dt_in:
+        time = np.linspace(0, days*24*3600, int(days*24*3600 / dt_in))
+    else:
+        time = transmitters[:,0]
+    
     transmitters = np.delete(transmitters,0,axis=1)
     columns = transmitters.transpose()
     interpolated = [gran_time]
@@ -77,16 +81,6 @@ if __name__ == '__main__':
                 15, 15, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,\
                 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11]
     
-    # Get transmitters, reorganize them, and interpolate
-    print('Transmitters')
-    transmitters_file = '/home/polfr/Documents/dummy_data/ReportFile_transmitters.txt'
-    transmitters = load_data(transmitters_file, rows=1)
-
-    transmitters = reorder_transmitters(transmitters, sat_shell_assign, shell_num_sats)
-    transmitters = interpolation(transmitters, dt=5, days=15)
-
-    print(transmitters.shape)
-
     # Get recievers, interpolate
     print('Receivers')
     receivers_file = '/home/polfr/Documents/dummy_data/ReportFile_recievers_15sec_15day.txt'
@@ -94,6 +88,16 @@ if __name__ == '__main__':
     print(receivers.shape)
     receivers = interpolation(receivers, dt=5, days=15)
     print(receivers.shape)
+
+    # Get transmitters, reorganize them, and interpolate
+    print('Transmitters')
+    transmitters_file = '/home/polfr/Documents/dummy_data/ReportFile_transmitters.txt'
+    transmitters = load_data(transmitters_file, rows=1)
+
+    transmitters = reorder_transmitters(transmitters, sat_shell_assign, shell_num_sats)
+    transmitters = interpolation(transmitters, dt=5, days=15, dt_in=60)
+
+    print(transmitters.shape)
 
     # Combine and save files
     filename = '/home/polfr/Documents/dummy_data/15day_5s_orbit_blueTeam.txt'
