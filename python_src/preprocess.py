@@ -12,7 +12,7 @@ def interpolation(transmitters, dt=1, days=15, dt_in=False):
     gran_time = np.linspace(0, days*24*3600, int(days*24*3600 / dt))
 
     if dt_in:
-        time = np.linspace(0, days*24*3600, int(days*24*3600 / dt_in))
+        time = np.linspace(0, days*24*3600-dt_in, int(days*24*3600 / dt_in)-1)
     else:
         time = transmitters[:,0]
     
@@ -21,7 +21,7 @@ def interpolation(transmitters, dt=1, days=15, dt_in=False):
     interpolated = [gran_time]
 
     for col in tqdm(columns):
-        temp = interpolate.interp1d(time, col, kind='linear')
+        temp = interpolate.interp1d(time, col, kind='linear', fill_value='extrapolate')
         interpolated = interpolated + [temp(gran_time)]
     
     interpolated = np.array(interpolated).transpose()
