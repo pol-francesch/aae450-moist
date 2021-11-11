@@ -291,9 +291,9 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     print('Working on L-Band...')
     transmitter_constellations_l_band, trans_sma_l_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'l', dt=dt, days=days)
     
-    for trans_const in transmitter_constellations_l_band:
+    for trans_const, trans_sma in zip(transmitter_constellations_l_band, trans_sma_l_band):
         print('\n\n')
-        specular_df = get_specular_points_fuck_titan(trans_const, trans_sma_l_band, time, recivers, rec_sma, rec_satNum)
+        specular_df = get_specular_points_fuck_titan(trans_const, trans_sma, time, recivers, rec_sma, rec_satNum)
     exit()
     results_l_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
               zip(transmitter_constellations_l_band, trans_sma_l_band))
