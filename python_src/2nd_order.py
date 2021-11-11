@@ -89,15 +89,18 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz):
     y = y[positive][:, np.newaxis]
     x = x[positive][:, np.newaxis]
 
-    print(rec.shape)
-    print(a.shape)
-    print(coeffs.shape)
-    print(y.shape)
-    print(x.shape)
-
-    spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
-
-    print(spec.shape)
+    try:
+        spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
+    except ValueError:
+        print(rec.shape)
+        print(trans.shape)
+        print(a.shape)
+        print(coeffs.shape)
+        print(roots.shape)
+        print(y.shape)
+        print(x.shape)
+        exit()
+    # print(spec.shape)
 
     return spec[:,0], spec[:,1], spec[:,2]
 
@@ -291,7 +294,7 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     # L-Band
     print('Working on L-Band...')
     transmitter_constellations_l_band, trans_sma_l_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'l', dt=dt, days=days)
-    
+    print('Getting specular points')
     for trans_const, trans_sma in zip(transmitter_constellations_l_band, trans_sma_l_band):
         print('\n\n')
         specular_df = get_specular_points_fuck_titan(trans_const, trans_sma, time, recivers, rec_sma, rec_satNum)
