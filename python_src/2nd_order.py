@@ -89,13 +89,14 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz):
     y = y[positive][:, np.newaxis]
     x = x[positive][:, np.newaxis]
 
-    spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
-
     print(rec.shape)
     print(a.shape)
     print(coeffs.shape)
     print(y.shape)
     print(x.shape)
+
+    spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
+
     print(spec.shape)
 
     return spec[:,0], spec[:,1], spec[:,2]
