@@ -28,6 +28,14 @@ def interpolation(transmitters, dt=1, days=15, dt_in=False):
 
     return interpolated
 
+def interpolation2(xold, yold, dt=1, days=15):
+    # Generate time list (in days) of interval 1 second
+    gran_time = np.linspace(0, days*24*3600, int(days*24*3600 / dt))
+
+    temp = interpolate.interp1d(xold, yold.T, kind='linear', fill_value='extrapolate')
+
+    return gran_time, temp(gran_time).T   
+
 def reorder_transmitters(transmitters, sat_shell_assign, shell_num_sats):
     '''
         Makes sure that the columns are ordered correctly
@@ -57,6 +65,24 @@ def combine_rec_trans(receivers, transmitters):
     combined = np.concatenate((receivers, transmitters), axis=1)
 
     print(combined.shape)
+
+    return combined
+
+def get_interpolated_rec_trans(receivers_file, transmitters_file, sat_shell_assign, shell_num_sats, days=15, dt=2, dt_in=None):
+    # Get recievers, interpolate
+    print('Getting & interpolating receivers')
+    receivers = load_data(receivers_file, rows=0)
+    receivers = interpolation(receivers, dt=dt, days=days)
+
+    # Get transmitters, reorganize them, and interpolate
+    print('Getting & interpolating transmitters')
+    transmitters = load_data(transmitters_file, rows=1)
+
+    transmitters = reorder_transmitters(transmitters, sat_shell_assign, shell_num_sats)
+    transmitters = interpolation(transmitters, dt=dt, days=days, dt_in=dt_in)
+
+    # Combine
+    combined = combine_rec_trans(receivers, transmitters)
 
     return combined
 
