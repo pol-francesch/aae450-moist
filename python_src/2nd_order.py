@@ -81,13 +81,13 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
     y = roots[ypositive].reshape((-1,2))
 
     # Remove receiver and transmitters that don't have a specular point
-    spec_iloc = np.sum(ypositive.astype(int), axis=1).astype(bool)
-    rec = rec[spec_iloc, :]
-    trans = trans[spec_iloc, :]
-    time = time[spec_iloc]
-    a = a[spec_iloc]
-    b = b[spec_iloc]
-    c = c[spec_iloc]
+    yspec_iloc = np.sum(ypositive.astype(int), axis=1).astype(bool)
+    rec = rec[yspec_iloc, :]
+    trans = trans[yspec_iloc, :]
+    trim_time = time[yspec_iloc]
+    a = a[yspec_iloc]
+    b = b[yspec_iloc]
+    c = c[yspec_iloc]
 
     # Step 2
     b = b[:, np.newaxis]
@@ -98,7 +98,8 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
 
         # Pick x and y for which both x and y are > 0
         # Remove double samples
-        double_spec = np.logical_xor(x[:,0], x[:,1])
+        positive = (x > 0).astype(int)
+        double_spec = np.logical_xor(positive[:,0], positive[:,1])
         x[double_spec, :] = -1
 
         positive = x > 0
@@ -109,7 +110,7 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         spec_iloc = np.sum(positive.astype(int), axis=1).astype(bool)
         rec = rec[spec_iloc, :]
         trans = trans[spec_iloc, :]
-        time = time[spec_iloc]
+        trim_time = time[spec_iloc]
         a = a[spec_iloc]
         b = b[spec_iloc]
         c = c[spec_iloc]
@@ -123,13 +124,19 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         print(c.shape)
         print(coeffs.shape)
         print(roots.shape)
+        print(yspec_iloc.shape)
         print(spec_iloc.shape)
+        print(ypositive.shape)
+        print(positive.shape)
+        print(double_spec.shape)
+        print(roots[roots > 0].reshape((-1,2)).shape)
+        print(max(np.sum(positive.astype(int), axis=1)))
         print(y.shape)
         print(x.shape)
         print(err)
         exit()
 
-    return spec, rec, trans, time
+    return spec, rec, trans, trim_time
 
 def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_sma, rec_satNum):
     '''
@@ -172,16 +179,26 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
                 temp_df = pd.DataFrame(columns=['Time'])
                 temp_df['Time'] = trim_time/86400                    # in days
 
-                # Add in ECEF info as it is needed later
-                temp_df['spec_x'] = spec[:,0]
-                temp_df['spec_y'] = spec[:,1]
-                temp_df['spec_z'] = spec[:,2]
-                temp_df['trans_x'] = trans[:,0]
-                temp_df['trans_y'] = trans[:,1]
-                temp_df['trans_z'] = trans[:,2]
-                temp_df['rec_x'] = rec[:,0]
-                temp_df['rec_y'] = rec[:,1]
-                temp_df['rec_z'] = rec[:,2]
+                try:
+                    # Add in ECEF info as it is needed later
+                    temp_df['spec_x'] = spec[:,0]
+                    temp_df['spec_y'] = spec[:,1]
+                    temp_df['spec_z'] = spec[:,2]
+                    temp_df['trans_x'] = trans[:,0]
+                    temp_df['trans_y'] = trans[:,1]
+                    temp_df['trans_z'] = trans[:,2]
+                    temp_df['rec_x'] = rec[:,0]
+                    temp_df['rec_y'] = rec[:,1]
+                    temp_df['rec_z'] = rec[:,2]
+                except ValueError as err:
+                            print('this is in fuck titan')
+                            print(rec.shape)
+                            print(trans.shape)
+                            print(spec.shape)
+                            print(trim_time.shape)
+                            print(err)
+                            exit()
+
 
                 temp_df = temp_df.dropna()                              # if no specular point, previous function returns none. Remove these entries
 
