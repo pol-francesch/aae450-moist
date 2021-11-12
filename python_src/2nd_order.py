@@ -115,7 +115,7 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         c = c[spec_iloc]
 
         spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
-    except ValueError:
+    except ValueError as err:
         print(rec.shape)
         print(trans.shape)
         print(a.shape)
@@ -126,6 +126,7 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         print(spec_iloc.shape)
         print(y.shape)
         print(x.shape)
+        print(err)
         exit()
 
     return spec, rec, trans, time
