@@ -116,9 +116,11 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         c = c[spec_iloc]
 
         spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
-    except ValueError as err:
+    except ValueError or IndexError as err:
         print(rec.shape)
         print(trans.shape)
+        print(time.shape)
+        print(trim_time.shape)
         print(a.shape)
         print(b.shape)
         print(c.shape)
@@ -335,8 +337,10 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     print('Working on L-Band...')
     transmitter_constellations_l_band, trans_sma_l_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'l', dt=dt, days=days)
     print('Getting specular points')
-    for trans_const, trans_sma in zip(transmitter_constellations_l_band, trans_sma_l_band):
-        print('\n\n')
+    for trans_const, trans_sma, i in zip(transmitter_constellations_l_band, trans_sma_l_band, range(len(trans_sma_l_band))):
+        print('\n\n', i)
+        if i == 0:
+            continue
         specular_df = get_specular_points_fuck_titan(trans_const, trans_sma, time, recivers, rec_sma, rec_satNum)
     exit()
     results_l_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
