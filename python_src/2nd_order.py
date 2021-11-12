@@ -348,24 +348,26 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     print('Working on L-Band...')
     transmitter_constellations_l_band, trans_sma_l_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'l', dt=dt, days=days)
     print('Getting specular points')
-    for trans_const, trans_sma, i in zip(transmitter_constellations_l_band, trans_sma_l_band, range(len(trans_sma_l_band))):
-        print('\n\n', i)
-        # if i == 0:
-        #     continue
-        specular_df = get_specular_points_fuck_titan(trans_const, trans_sma, time, recivers, rec_sma, rec_satNum)
-    exit()
+    # for trans_const, trans_sma, i in zip(transmitter_constellations_l_band, trans_sma_l_band, range(len(trans_sma_l_band))):
+    #     print('\n\n', i)
+    #     # if i == 0:
+    #     #     continue
+    #     specular_df = get_specular_points_fuck_titan(trans_const, trans_sma, time, recivers, rec_sma, rec_satNum)
+    # exit()
     results_l_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
               zip(transmitter_constellations_l_band, trans_sma_l_band))
     
     # P-Band
     print('Working on P-Band...')
     transmitter_constellations_p_band, trans_sma_p_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'p', dt=dt, days=days)
+    print('Getting specular points')
     results_p_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
               zip(transmitter_constellations_p_band, trans_sma_p_band))
     
     # VHF-Band
     print('Working on VHF-Band...')
     transmitter_constellations_vhf_band, trans_sma_vhf_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'vhf', dt=dt, days=days)
+    print('Getting specular points')
     results_vhf_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
               zip(transmitter_constellations_vhf_band, trans_sma_vhf_band))
     pool.close()
