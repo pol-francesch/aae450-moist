@@ -110,13 +110,20 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         spec_iloc = np.sum(positive.astype(int), axis=1).astype(bool)
         rec = rec[spec_iloc, :]
         trans = trans[spec_iloc, :]
-        trim_time = time[spec_iloc]
+        trim_time = trim_time[spec_iloc]
         a = a[spec_iloc]
         b = b[spec_iloc]
         c = c[spec_iloc]
 
         spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
-    except ValueError or IndexError as err:
+        print('\n')
+        print(y.shape)
+        print(x.shape)
+        print(b.shape)
+        print(c.shape)
+
+    except BaseException as err:
+        print('in spec point vec')
         print(rec.shape)
         print(trans.shape)
         print(time.shape)
@@ -136,6 +143,10 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         print(y.shape)
         print(x.shape)
         print(err)
+        print('checking for nan elements')
+        print(np.isnan(np.sum(rec)))
+        print(np.isnan(np.sum(trans)))
+        print(np.isnan(np.sum(y)))
         exit()
 
     return spec, rec, trans, trim_time
