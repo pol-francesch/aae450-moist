@@ -77,7 +77,17 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
     roots  = quartic_roots(coeffs)
 
     # Remove elements without positive roots
-    y = roots[roots > 0].reshape((-1,2))
+    ypositive = roots > 0
+    y = roots[ypositive].reshape((-1,2))
+
+    # Remove receiver and transmitters that don't have a specular point
+    spec_iloc = np.sum(ypositive.astype(int), axis=1).astype(bool)
+    rec = rec[spec_iloc, :]
+    trans = trans[spec_iloc, :]
+    time = time[spec_iloc]
+    a = a[spec_iloc]
+    b = b[spec_iloc]
+    c = c[spec_iloc]
 
     # Step 2
     b = b[:, np.newaxis]
@@ -100,6 +110,9 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         rec = rec[spec_iloc, :]
         trans = trans[spec_iloc, :]
         time = time[spec_iloc]
+        a = a[spec_iloc]
+        b = b[spec_iloc]
+        c = c[spec_iloc]
 
         spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
     except ValueError:
@@ -110,9 +123,9 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         print(c.shape)
         print(coeffs.shape)
         print(roots.shape)
+        print(spec_iloc.shape)
         print(y.shape)
         print(x.shape)
-        print(spec_iloc.shape)
         exit()
 
     return spec, rec, trans, time
