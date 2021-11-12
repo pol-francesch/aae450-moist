@@ -77,7 +77,7 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
     roots  = quartic_roots(coeffs)
 
     # Remove elements without positive roots
-    y = roots[roots > 0].reshape((roots.shape[0],-1))
+    y = roots[roots > 0].reshape((-1,4))
 
     # Step 2
     b = b[:, np.newaxis]
