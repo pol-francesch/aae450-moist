@@ -82,29 +82,32 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
     # Step 2
     b = b[:, np.newaxis]
     c = c[:, np.newaxis]
-    x = (-2*c*y**2 + y + 1) / (2*b*y + 1)
-
-    # Pick x and y for which both x and y are > 0
-    # Remove double samples
-    double_spec = np.logical_xor(x[:,0], x[:,1])
-    x[double_spec, :] = -1
-
-    positive = x > 0
-    y = y[positive][:, np.newaxis]
-    x = x[positive][:, np.newaxis]
-
-    # Remove receiver and transmitters that don't have a specular point
-    spec_iloc = np.sum(positive.astype(int), axis=1).astype(bool)
-    rec = rec[spec_iloc, :]
-    trans = trans[spec_iloc, :]
-    time = time[spec_iloc]
 
     try:
+        x = (-2*c*y**2 + y + 1) / (2*b*y + 1)
+
+        # Pick x and y for which both x and y are > 0
+        # Remove double samples
+        double_spec = np.logical_xor(x[:,0], x[:,1])
+        x[double_spec, :] = -1
+
+        positive = x > 0
+        y = y[positive][:, np.newaxis]
+        x = x[positive][:, np.newaxis]
+
+        # Remove receiver and transmitters that don't have a specular point
+        spec_iloc = np.sum(positive.astype(int), axis=1).astype(bool)
+        rec = rec[spec_iloc, :]
+        trans = trans[spec_iloc, :]
+        time = time[spec_iloc]
+
         spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
     except ValueError:
         print(rec.shape)
         print(trans.shape)
         print(a.shape)
+        print(b.shape)
+        print(c.shape)
         print(coeffs.shape)
         print(roots.shape)
         print(y.shape)
