@@ -11,7 +11,7 @@ from preprocess import interpolation, interpolation2
 EARTH_RADIUS = 6371.009
 
 def load_data(file_name, columns=None):
-    data = np.loadtxt(file_name, skiprows=0, usecols=columns)
+    data = np.loadtxt(file_name, skiprows=1, usecols=columns)
 
     return data
 
@@ -53,7 +53,7 @@ def get_spec(recx, recy, recz, transx, transy, transz):
 
     return spec[0], spec[1], spec[2]
 
-def get_spec_vectorized(recx, recy, recz, transx, transy, transz):
+def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
     '''
         Given reciever and transmitter location, return specular point.
         Return empty element if no specular point is found.
@@ -89,6 +89,12 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz):
     y = y[positive][:, np.newaxis]
     x = x[positive][:, np.newaxis]
 
+    # Remove receiver and transmitters that don't have a specular point
+    spec_iloc = np.sum(positive.astype(int), axis=1).astype(bool)
+    rec = rec[spec_iloc, :]
+    trans = trans[spec_iloc, :]
+    time = time[spec_iloc]
+
     try:
         spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
     except ValueError:
@@ -99,10 +105,10 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz):
         print(roots.shape)
         print(y.shape)
         print(x.shape)
+        print(spec_iloc.shape)
         exit()
-    # print(spec.shape)
 
-    return spec[:,0], spec[:,1], spec[:,2]
+    return spec, rec, trans, time
 
 def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_sma, rec_satNum):
     '''
@@ -138,27 +144,23 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
                 rec_z = rec_sma[j] * np.sin(reciver[:,0])
                 
                 # Get them goods
-                sp_x, sp_y, sp_z = get_spec_vectorized(rec_x, rec_y, rec_z, trans_x, trans_y, trans_z)
+                spec, rec, trans, trim_time = get_spec_vectorized(rec_x, rec_y, rec_z, trans_x, trans_y, trans_z, time)
                 # sp_x, sp_y, sp_z = vfunc(recx=rec_x, recy=rec_y, recz=rec_z, transx=trans_x, transy=trans_y, transz=trans_z)
                 
                 # Put it in a dataframe because that is easier to handle from now on
-                temp_df = pd.DataFrame(columns=['Time', 'trans_lat', 'trans_lon', 'rec_lat', 'rec_lon'])
-                temp_df['Time'] = time/86400                    # in days
-                temp_df['trans_lat'] = transmitters[:,0]
-                temp_df['trans_lon'] = transmitters[:,1]
-                temp_df['rec_lat'] = reciver[:,0]
-                temp_df['rec_lon'] = reciver[:,1]
+                temp_df = pd.DataFrame(columns=['Time'])
+                temp_df['Time'] = trim_time/86400                    # in days
 
                 # Add in ECEF info as it is needed later
-                temp_df['spec_x'] = sp_x
-                temp_df['spec_y'] = sp_y
-                temp_df['spec_z'] = sp_z
-                temp_df['trans_x'] = trans_x
-                temp_df['trans_y'] = trans_y
-                temp_df['trans_z'] = trans_z
-                temp_df['rec_x'] = rec_x
-                temp_df['rec_y'] = rec_y
-                temp_df['rec_z'] = rec_z
+                temp_df['spec_x'] = spec[:,0]
+                temp_df['spec_y'] = spec[:,1]
+                temp_df['spec_z'] = spec[:,2]
+                temp_df['trans_x'] = trans[:,0]
+                temp_df['trans_y'] = trans[:,1]
+                temp_df['trans_z'] = trans[:,2]
+                temp_df['rec_x'] = rec[:,0]
+                temp_df['rec_y'] = rec[:,1]
+                temp_df['rec_z'] = rec[:,2]
 
                 temp_df = temp_df.dropna()                              # if no specular point, previous function returns none. Remove these entries
 
@@ -750,17 +752,17 @@ if __name__ == '__main__':
                  6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    # rec_sma = [EARTH_RADIUS + 450]
-    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    rec_sma = [EARTH_RADIUS + 450]
+    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
     # Number of sats per constellation
     # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
     # Same order as trans_sma
-    # rec_satNum   = [1]
-    # trans_satNum = [2,2]
+    rec_satNum   = [1]
+    trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['l','p']
+    trans_freq = ['l','p']
 
     # Get the specular points...
     # By recalculating
