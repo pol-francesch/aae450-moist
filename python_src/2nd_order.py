@@ -6,7 +6,7 @@ import multiprocessing as mp
 from functools import partial
 from scipy.spatial import KDTree
 from fqs.fqs import quartic_roots
-from preprocess import interpolation, interpolation2
+from preprocess import interpolation2
 
 EARTH_RADIUS = 6371.009
 
@@ -99,8 +99,8 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         # Pick x and y for which both x and y are > 0
         # Remove double samples
         positive = (x > 0).astype(int)
-        double_spec = np.logical_xor(positive[:,0], positive[:,1])
-        x[double_spec, :] = -1
+        double_spec = np.logical_and(positive[:,0], positive[:,1])
+        x[double_spec, :] = 0
 
         positive = x > 0
         y = y[positive][:, np.newaxis]
@@ -116,11 +116,11 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         c = c[spec_iloc]
 
         spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
-        print('\n')
-        print(y.shape)
-        print(x.shape)
-        print(b.shape)
-        print(c.shape)
+        # print('\n')
+        # print(y.shape)
+        # print(x.shape)
+        # print(rec.shape)
+        # print(trans.shape)
 
     except BaseException as err:
         print('in spec point vec')
@@ -350,8 +350,8 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     print('Getting specular points')
     for trans_const, trans_sma, i in zip(transmitter_constellations_l_band, trans_sma_l_band, range(len(trans_sma_l_band))):
         print('\n\n', i)
-        if i == 0:
-            continue
+        # if i == 0:
+        #     continue
         specular_df = get_specular_points_fuck_titan(trans_const, trans_sma, time, recivers, rec_sma, rec_satNum)
     exit()
     results_l_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
@@ -747,7 +747,7 @@ if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
     filename = '/home/polfr/Documents/dummy_data/10_06_2021_GMAT/Unzipped/ReportFile1_TestforPol.txt'
-    filename = '/home/polfr/Documents/dummy_data/test_data.txt'
+    # filename = '/home/polfr/Documents/dummy_data/test_data.txt'
 
     # Save file - used for loading and saving specular points
     savefile_start = '/home/polfr/Documents/dummy_data/specular_points_blueTeam_15day_1s_'
@@ -805,17 +805,17 @@ if __name__ == '__main__':
                  6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    # rec_sma = [EARTH_RADIUS + 450]
-    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    rec_sma = [EARTH_RADIUS + 450]
+    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
     # Number of sats per constellation
     # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
     # Same order as trans_sma
-    # rec_satNum   = [1]
-    # trans_satNum = [2,2]
+    rec_satNum   = [1]
+    trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['l','p']
+    trans_freq = ['l','p']
 
     # Get the specular points...
     # By recalculating
