@@ -11,7 +11,7 @@ from preprocess import interpolation, interpolation2
 EARTH_RADIUS = 6371.009
 
 def load_data(file_name, columns=None):
-    data = np.loadtxt(file_name, skiprows=0, usecols=columns)
+    data = np.loadtxt(file_name, skiprows=1, usecols=columns)
 
     return data
 
@@ -77,7 +77,7 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
     roots  = quartic_roots(coeffs)
 
     # Remove elements without positive roots
-    y = roots[roots > 0].reshape((-1,4))
+    y = roots[roots > 0].reshape((-1,2))
 
     # Step 2
     b = b[:, np.newaxis]
@@ -85,6 +85,10 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
     x = (-2*c*y**2 + y + 1) / (2*b*y + 1)
 
     # Pick x and y for which both x and y are > 0
+    # Remove double samples
+    double_spec = np.logical_xor(x[:,0], x[:,1])
+    x[double_spec, :] = -1
+
     positive = x > 0
     y = y[positive][:, np.newaxis]
     x = x[positive][:, np.newaxis]
@@ -752,17 +756,17 @@ if __name__ == '__main__':
                  6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    # rec_sma = [EARTH_RADIUS + 450]
-    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    rec_sma = [EARTH_RADIUS + 450]
+    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
     # Number of sats per constellation
     # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
     # Same order as trans_sma
-    # rec_satNum   = [1]
-    # trans_satNum = [2,2]
+    rec_satNum   = [1]
+    trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['l','p']
+    trans_freq = ['l','p']
 
     # Get the specular points...
     # By recalculating
