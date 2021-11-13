@@ -1,4 +1,3 @@
-from operator import pos
 import pandas as pd 
 import numpy as np
 from tqdm import tqdm
@@ -79,15 +78,29 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
     # Remove elements without positive roots
     ypositive = roots > 0
     y = roots[ypositive].reshape((-1,2))
+    # print(y.shape)
+    # print(rec.shape)
+    # print(trans.shape)
 
     # Remove receiver and transmitters that don't have a specular point
-    yspec_iloc = np.sum(ypositive.astype(int), axis=1).astype(bool)
+    yspec_iloc = np.logical_or.reduce(ypositive, axis=1)
+
+    # print(ypositive)
+    # print(yspec_iloc)
+    # print(yspec_iloc.shape)
+
     rec = rec[yspec_iloc, :]
     trans = trans[yspec_iloc, :]
     trim_time = time[yspec_iloc]
     a = a[yspec_iloc]
     b = b[yspec_iloc]
     c = c[yspec_iloc]
+
+    # print(rec.shape)
+    # print(trans.shape)
+    # print(a.shape)
+    # print(b.shape)
+    # print(c.shape)
 
     # Step 2
     b = b[:, np.newaxis]
@@ -107,7 +120,7 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         x = x[positive][:, np.newaxis]
 
         # Remove receiver and transmitters that don't have a specular point
-        spec_iloc = np.sum(positive.astype(int), axis=1).astype(bool)
+        spec_iloc = np.logical_or(positive[:,0], positive[:,1])
         rec = rec[spec_iloc, :]
         trans = trans[spec_iloc, :]
         trim_time = trim_time[spec_iloc]
@@ -121,6 +134,7 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         # print(x.shape)
         # print(rec.shape)
         # print(trans.shape)
+        # print(spec.shape)
 
     except BaseException as err:
         print('in spec point vec')
@@ -212,13 +226,11 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
                             print(err)
                             exit()
 
-
                 temp_df = temp_df.dropna()                              # if no specular point, previous function returns none. Remove these entries
-
                 # Finally get the LL of the specular point fuck me
                 temp_df['Lat'] = np.arcsin(temp_df['spec_z'] / EARTH_RADIUS)
                 temp_df['Lon'] = np.arctan2(temp_df['spec_y'], temp_df['spec_x'])
-                
+
                 # Enforce the type
                 temp_df = temp_df.astype('float64')
 
@@ -235,16 +247,19 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
                 temp_df['r_rtz'] = temp_df['trans_z'] - temp_df['rec_z']
 
                 #find thetas (for all names to the left of '=', coefficient 'r' left out, ex: r_rt made to be rt)
-                #theta1 (assumption of r_s constant?)
+                #theta1
                 temp_df['dot_s_sr'] = temp_df['r_srx']*temp_df['spec_x'] + temp_df['r_sry']*temp_df['spec_y'] + temp_df['r_srz']*temp_df['spec_z'] 
                 temp_df['mag_sr'] = np.sqrt(np.square(temp_df['r_srx']) + np.square(temp_df['r_sry']) + np.square(temp_df['r_srz']))
-                
-                # Arcos is limited to [-1 1]. Due to numerical issues, sometimes our are slightly outside this range.
+
+                # Arcos is limited to [-1 1]. Due to numerical issues, sometimes ours are slightly outside this range.
                 # Force them inside the range
                 temp_df['theta1_temp'] = temp_df['dot_s_sr'] / (temp_df['mag_sr']*EARTH_RADIUS)
-                temp_df['theta1_temp'].where(temp_df['theta1_temp'] <= 1.0, 1.0, inplace=True)
-                temp_df['theta1_temp'].where(temp_df['theta1_temp'] >= -1.0, -1.0, inplace=True)
-                temp_df['theta1'] = np.abs(np.arccos(temp_df['theta1_temp'])) * 180.0 / np.pi
+                temp_df['theta1_temp'][temp_df['theta1_temp'] >= 1.0] = 1.0
+                temp_df['theta1_temp'][temp_df['theta1_temp'] <= -1.0] = -1.0
+                # print(temp_df['theta1_temp'].head(20))
+                # print(max(temp_df['theta1_temp']))
+                # print(min(temp_df['theta1_temp']))
+                temp_df['theta1'] = np.arccos(temp_df['theta1_temp']) * 180.0 / np.pi
 
                 #theta2
                 temp_df['dot_r_sr'] = temp_df['r_srx']*temp_df['rec_x'] + temp_df['r_sry']*temp_df['rec_y'] + temp_df['r_srz']*temp_df['rec_z'] 
@@ -268,7 +283,6 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
                 # Transform to degrees while we're at it
                 temp_df['Lat'] = (temp_df['Lat']*180.0/np.pi).tolist()
                 temp_df['Lon'] = (temp_df['Lon']*180.0/np.pi).tolist()
-
                 # Append
                 spec_df = pd.concat([spec_df, temp_df])
         
@@ -345,7 +359,8 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     pool = mp.Pool()
 
     # L-Band
-    print('Working on L-Band...')
+    print('######################################################################################')
+    print('Loading & Interpolating L-Band Transmitters...')
     transmitter_constellations_l_band, trans_sma_l_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'l', dt=dt, days=days)
     print('Getting specular points')
     # for trans_const, trans_sma, i in zip(transmitter_constellations_l_band, trans_sma_l_band, range(len(trans_sma_l_band))):
@@ -358,14 +373,16 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
               zip(transmitter_constellations_l_band, trans_sma_l_band))
     
     # P-Band
-    print('Working on P-Band...')
+    print('######################################################################################')
+    print('Loading & Interpolating P-Band Transmitters...')
     transmitter_constellations_p_band, trans_sma_p_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'p', dt=dt, days=days)
     print('Getting specular points')
     results_p_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
               zip(transmitter_constellations_p_band, trans_sma_p_band))
     
     # VHF-Band
-    print('Working on VHF-Band...')
+    print('######################################################################################')
+    print('Loading & Interpolating VHF-Band Transmitters...')
     transmitter_constellations_vhf_band, trans_sma_vhf_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'vhf', dt=dt, days=days)
     print('Getting specular points')
     results_vhf_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
@@ -376,8 +393,10 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     # Join results
     if len(results_l_band) > 0:
         spec_df_l_band = pd.concat(results_l_band)
+        print(spec_df_l_band)
     if len(results_p_band) > 0:
         spec_df_p_band = pd.concat(results_p_band)
+        print(spec_df_p_band)
     if len(results_vhf_band) > 0:
         spec_df_vhf_band = pd.concat(results_vhf_band)
     
@@ -817,7 +836,7 @@ if __name__ == '__main__':
     # trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['l','p']
+    # trans_freq = ['p','p']
 
     # Get the specular points...
     # By recalculating
@@ -855,7 +874,7 @@ if __name__ == '__main__':
     get_revisit_stats(specular_df_p_band, science)
 
     # RZSM
-    desired_freq = ['vhf']        
+    desired_freq = ['vhf', 'p']        
     science = 'RZSM'
     specular_df = pd.concat([specular_df_p_band, specular_df_vhf_band])
     get_revisit_stats(specular_df, science)
