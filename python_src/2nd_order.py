@@ -165,7 +165,7 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
 
     return spec, rec, trans, trim_time
 
-def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_sma, rec_satNum):
+def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_sma, rec_satNum, frequency):
     '''
         Returns dataframe of specular points for receivers and ONE transmitter constellation.
         Specially useful for parallel programming.
@@ -174,7 +174,7 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
     '''
     print(mp.current_process().name + ' has started working.')
     # Specular points dataframe
-    spec_df = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'theta2', 'theta3'])
+    spec_df = pd.DataFrame(columns=['Time', 'Lat', 'Lon'])
 
     # Vectorize the function
     vfunc = np.vectorize(get_spec)
@@ -259,7 +259,7 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
                 # print(temp_df['theta1_temp'].head(20))
                 # print(max(temp_df['theta1_temp']))
                 # print(min(temp_df['theta1_temp']))
-                temp_df['theta1'] = np.arccos(temp_df['theta1_temp']) * 180.0 / np.pi
+                temp_df['theta1'] = 180 - np.arccos(temp_df['theta1_temp']) * 180.0 / np.pi
 
                 #theta2
                 temp_df['dot_r_sr'] = temp_df['r_srx']*temp_df['rec_x'] + temp_df['r_sry']*temp_df['rec_y'] + temp_df['r_srz']*temp_df['rec_z'] 
@@ -274,8 +274,14 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
                 # Inclination angle is always < 60 deg (theta 1)
                 temp_df = temp_df[temp_df['theta1'] <= 60.0]
 
+                # Apply other angles based on frequency type
+                temp_df = apply_science_angles(temp_df, science_req=frequency)
+
+                # No science is over 70 deg, so get rid of them
+                temp_df = temp_df[abs(temp_df['Lat']) <= 70.0]
+
                 # Remove extra columns
-                keep    = ['Time', 'Lat', 'Lon', 'theta2', 'theta3']
+                keep    = ['Time', 'Lat', 'Lon']
                 extra   = [elem for elem in temp_df.columns.to_list() if elem not in keep]
                 temp_df = temp_df.drop(columns=extra)
 
@@ -389,6 +395,7 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
               zip(transmitter_constellations_vhf_band, trans_sma_vhf_band))
     pool.close()
     pool.join()
+    print('######################################################################################')
 
     # Join results
     if len(results_l_band) > 0:
@@ -558,7 +565,7 @@ def apply_science_angles(specular_df, science_req='SSM'):
 
 def get_revisit_stats(specular_df, science_req):
     # Apply angle requirements
-    specular_df = apply_science_angles(specular_df, science_req)
+    # specular_df = apply_science_angles(specular_df, science_req)
 
     if specular_df.empty:
         print('######################################################################################')
