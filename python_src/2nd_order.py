@@ -10,7 +10,7 @@ from preprocess import interpolation2
 EARTH_RADIUS = 6371.009
 
 def load_data(file_name, columns=None):
-    data = np.loadtxt(file_name, skiprows=0, usecols=columns)
+    data = np.loadtxt(file_name, skiprows=1, usecols=columns)
 
     return data
 
@@ -70,6 +70,10 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
     a = np.einsum('ij,ij->i', rec, rec)
     b = np.einsum('ij,ij->i', rec, trans)
     c = np.einsum('ij,ij->i', trans, trans)
+    
+    # Check if equation is valid
+    # val_check = a*c - b**2
+    # print(min(abs(val_check)))
 
     # Step 1
     coeffs = np.array([4*c*(a*c-b**2), -4*(a*c-b**2), a+2*b+c-4*a*c, 2*(a-b), a-1]).T
@@ -128,7 +132,7 @@ def get_spec_vectorized(recx, recy, recz, transx, transy, transz, time):
         b = b[spec_iloc]
         c = c[spec_iloc]
 
-        spec = np.real((x*rec + y*trans) * EARTH_RADIUS)
+        spec = np.real((x*rec + y*trans))
         # print('\n')
         # print(y.shape)
         # print(x.shape)
@@ -208,15 +212,15 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
 
                 try:
                     # Add in ECEF info as it is needed later
-                    temp_df['spec_x'] = spec[:,0]
-                    temp_df['spec_y'] = spec[:,1]
-                    temp_df['spec_z'] = spec[:,2]
-                    temp_df['trans_x'] = trans[:,0]
-                    temp_df['trans_y'] = trans[:,1]
-                    temp_df['trans_z'] = trans[:,2]
-                    temp_df['rec_x'] = rec[:,0]
-                    temp_df['rec_y'] = rec[:,1]
-                    temp_df['rec_z'] = rec[:,2]
+                    temp_df['spec_x'] = spec[:,0] * EARTH_RADIUS
+                    temp_df['spec_y'] = spec[:,1] * EARTH_RADIUS
+                    temp_df['spec_z'] = spec[:,2] * EARTH_RADIUS
+                    temp_df['trans_x'] = trans[:,0] * EARTH_RADIUS
+                    temp_df['trans_y'] = trans[:,1] * EARTH_RADIUS
+                    temp_df['trans_z'] = trans[:,2] * EARTH_RADIUS
+                    temp_df['rec_x'] = rec[:,0] * EARTH_RADIUS
+                    temp_df['rec_y'] = rec[:,1] * EARTH_RADIUS
+                    temp_df['rec_z'] = rec[:,2] * EARTH_RADIUS
                 except ValueError as err:
                             print('this is in fuck titan')
                             print(rec.shape)
@@ -259,19 +263,20 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
                 # print(temp_df['theta1_temp'].head(20))
                 # print(max(temp_df['theta1_temp']))
                 # print(min(temp_df['theta1_temp']))
-                temp_df['theta1'] = 180 - np.arccos(temp_df['theta1_temp']) * 180.0 / np.pi
+                temp_df['theta1'] = np.abs(np.arccos(temp_df['theta1_temp']) * 180.0 / np.pi-90.0)
 
                 #theta2
                 temp_df['dot_r_sr'] = temp_df['r_srx']*temp_df['rec_x'] + temp_df['r_sry']*temp_df['rec_y'] + temp_df['r_srz']*temp_df['rec_z'] 
                 temp_df['mag_r'] = np.sqrt(np.square(temp_df['rec_x']) + np.square(temp_df['rec_y']) + np.square(temp_df['rec_z']))
-                temp_df['theta2'] = np.abs(np.arccos(temp_df['dot_r_sr']/(temp_df['mag_r']*temp_df['mag_sr']))) * 180.0 / np.pi
+                temp_df['theta2'] = np.abs(np.arccos(temp_df['dot_r_sr']/(temp_df['mag_r']*temp_df['mag_sr'])) * 180.0 / np.pi - 90.0)
 
                 #theta3
                 temp_df['dot_rt_r'] = temp_df['r_rtx']*temp_df['rec_x'] + temp_df['r_rty']*temp_df['rec_y'] + temp_df['r_rtz']*temp_df['rec_z'] 
                 temp_df['mag_rt'] = np.sqrt(np.square(temp_df['r_rtx']) + np.square(temp_df['r_rty']) + np.square(temp_df['r_rtz']))
-                temp_df['theta3'] = np.abs(np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))) * 180.0 / np.pi
+                temp_df['theta3'] = np.abs(np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt'])) * 180.0 / np.pi - 90.0)
                 
                 # Inclination angle is always < 60 deg (theta 1)
+                # print(temp_df[['Time','Lat','Lon','theta1','theta2','theta3']])
                 temp_df = temp_df[temp_df['theta1'] <= 60.0]
 
                 # Apply other angles based on frequency type
@@ -284,11 +289,12 @@ def get_specular_points_fuck_titan(transmitters, trans_sma, time, recivers, rec_
                 keep    = ['Time', 'Lat', 'Lon']
                 extra   = [elem for elem in temp_df.columns.to_list() if elem not in keep]
                 temp_df = temp_df.drop(columns=extra)
-
                 # Transfer numpy array to list to get it to work well
                 # Transform to degrees while we're at it
                 temp_df['Lat'] = (temp_df['Lat']*180.0/np.pi).tolist()
                 temp_df['Lon'] = (temp_df['Lon']*180.0/np.pi).tolist()
+                # print(temp_df)
+
                 # Append
                 spec_df = pd.concat([spec_df, temp_df])
         
@@ -360,30 +366,34 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     # Get the specular points
     # Set up multiprocessing
     print('Let\'s get this party started')
-    # specular_df = get_specular_points_fuck_titan(transmitter_constellations_p_band[0], trans_sma_p_band[0], time, recivers, rec_sma, rec_satNum)
-    # exit()
     pool = mp.Pool()
 
     # L-Band
     print('######################################################################################')
     print('Loading & Interpolating L-Band Transmitters...')
     transmitter_constellations_l_band, trans_sma_l_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'l', dt=dt, days=days)
-    print('Getting specular points')
     # for trans_const, trans_sma, i in zip(transmitter_constellations_l_band, trans_sma_l_band, range(len(trans_sma_l_band))):
     #     print('\n\n', i)
     #     # if i == 0:
     #     #     continue
-    #     specular_df = get_specular_points_fuck_titan(trans_const, trans_sma, time, recivers, rec_sma, rec_satNum)
+    #     specular_df = get_specular_points_fuck_titan(trans_const, trans_sma, time, recivers, rec_sma, rec_satNum, frequency='SSM')
     # exit()
-    results_l_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
+    print('Getting specular points')
+    results_l_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum, frequency='SSM'),\
               zip(transmitter_constellations_l_band, trans_sma_l_band))
     
     # P-Band
     print('######################################################################################')
     print('Loading & Interpolating P-Band Transmitters...')
     transmitter_constellations_p_band, trans_sma_p_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'p', dt=dt, days=days)
+    # for trans_const, trans_sma, i in zip(transmitter_constellations_p_band, trans_sma_p_band, range(len(trans_sma_p_band))):
+    #     print('\n\n', i)
+    #     # if i == 0:
+    #     #     continue
+    #     specular_df = get_specular_points_fuck_titan(trans_const, trans_sma, time, recivers, rec_sma, rec_satNum, frequency='RZSM')
+    # exit()
     print('Getting specular points')
-    results_p_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
+    results_p_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum, frequency='RZSM'),\
               zip(transmitter_constellations_p_band, trans_sma_p_band))
     
     # VHF-Band
@@ -391,7 +401,7 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     print('Loading & Interpolating VHF-Band Transmitters...')
     transmitter_constellations_vhf_band, trans_sma_vhf_band = get_transmitters_desired_freq(filename, trans_satNum, trans_freq, trans_sma, start, old_time, 'vhf', dt=dt, days=days)
     print('Getting specular points')
-    results_vhf_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum),\
+    results_vhf_band = pool.starmap(partial(get_specular_points_fuck_titan, time=time, recivers=recivers, rec_sma=rec_sma, rec_satNum=rec_satNum, frequency='RZSM'),\
               zip(transmitter_constellations_vhf_band, trans_sma_vhf_band))
     pool.close()
     pool.join()
@@ -400,12 +410,16 @@ def get_specular_points_multiprocessing(filename, rec_sma, trans_sma, rec_satNum
     # Join results
     if len(results_l_band) > 0:
         spec_df_l_band = pd.concat(results_l_band)
+        print('L Band DataFrame')
         print(spec_df_l_band)
     if len(results_p_band) > 0:
         spec_df_p_band = pd.concat(results_p_band)
+        print('P Band DataFrame')
         print(spec_df_p_band)
     if len(results_vhf_band) > 0:
         spec_df_vhf_band = pd.concat(results_vhf_band)
+        print('VHF Band DataFrame')
+        print(spec_df_vhf_band)
     
     return spec_df_l_band, spec_df_p_band, spec_df_vhf_band
 
@@ -775,7 +789,7 @@ if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
     filename = '/home/polfr/Documents/dummy_data/10_06_2021_GMAT/Unzipped/ReportFile1_TestforPol.txt'
-    # filename = '/home/polfr/Documents/dummy_data/test_data.txt'
+    filename = '/home/polfr/Documents/dummy_data/test_data.txt'
 
     # Save file - used for loading and saving specular points
     savefile_start = '/home/polfr/Documents/dummy_data/specular_points_blueTeam_15day_1s_'
