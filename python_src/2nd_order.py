@@ -6,11 +6,12 @@ from functools import partial
 from scipy.spatial import KDTree
 from fqs.fqs import quartic_roots
 from preprocess import interpolation2
+from joblib import Parallel, delayed
 
 EARTH_RADIUS = 6371.009
 
 def load_data(file_name, columns=None):
-    data = np.loadtxt(file_name, skiprows=1, usecols=columns)
+    data = np.loadtxt(file_name, skiprows=0, usecols=columns)
 
     return data
 
@@ -542,6 +543,113 @@ def get_swe_100m(specular_df):
     print('Coverage of SWE 1km passes: '+ str(total_1km/buckets))
     print('######################################################################################')
 
+def get_pass_in_grid(group):
+    '''
+        Checks if there is a pass within 100m to meet SWE L-Band requirement
+    '''
+    check_100m = 0
+    check_200m = 0
+    check_300m = 0
+    check_400m = 0
+    check_500m = 0
+    check_1km  = 0
+
+    row_mins = []
+
+    for index, row in group.iterrows():
+        # Get distance
+        distance_from_row = get_distance_lla(row['Lat'], row['Lon'], group['Lat'].drop(index), group['Lon'].drop(index))
+        minimum = np.amin(distance_from_row)
+
+        row_mins = row_mins + [minimum]
+    array = np.array(row_mins)
+
+    m_100 = array[array < 0.1]
+    m_200 = array[array < 0.2]
+    m_300 = array[array < 0.3]
+    m_400 = array[array < 0.4]
+    m_500 = array[array < 0.5]
+    km_1  = array[array < 1.0]
+
+    if m_100.size > 0:
+        check_100m = 1
+    if m_200.size > 0:
+        check_200m = 1
+    if m_300.size > 0:
+        check_300m = 1
+    if m_400.size > 0:
+        check_400m = 1
+    if m_500.size > 0:
+        check_500m = 1    
+    if km_1.size > 0:
+        check_1km = 1
+
+    return check_100m, check_200m, check_300m, check_400m, check_500m, check_1km 
+
+def get_swe_Lband_parallel(specular_df):
+    '''
+        Determines coverage for SWE L-Band Requirement
+        Does so using parallelization
+    '''
+    global EARTH_RADIUS
+
+    print('Beginning SWE 100m revisit calculations')
+    # Generate grid and get indeces for each specular point that matches grid element
+    specular_df = specular_df[abs(specular_df['Lat']) <= 70.0]
+
+    grid = create_earth_grid(resolution=100, max_lat=70)
+    points = np.c_[specular_df['Lat'], specular_df['Lon']]
+    tree = KDTree(grid)
+    _, indices = tree.query(points)
+
+    # Get estimated latitude and longitude based on resolution
+    specular_df['approx_LatSp'] = grid[indices, 0]
+    specular_df['approx_LonSp'] = grid[indices, 1]
+
+    # Calculate time difference
+    # specular_df.sort_values(by=['approx_LatSp', 'approx_LonSp', 'Time'], inplace=True)
+    specular_df = specular_df.groupby(['approx_LatSp', 'approx_LonSp'])
+
+    total_100m = 0
+    total_200m = 0
+    total_300m = 0
+    total_400m = 0
+    total_500m = 0
+    total_1km  = 0
+    buckets = grid.shape[0]
+
+    print(mp.cpu_count())
+    retLst = Parallel(n_jobs=mp.cpu_count())(delayed(get_pass_in_grid)(group) for name, group in specular_df)
+    retList = np.array(retLst)
+
+    total_100m = np.sum(retList[:,0])
+    total_200m = np.sum(retList[:,1])
+    total_300m = np.sum(retList[:,2])
+    total_400m = np.sum(retList[:,3])
+    total_500m = np.sum(retList[:,4])
+    total_1km  = np.sum(retList[:,5])
+
+    print('######################################################################################')
+    print('Snow-Water Equivalent (SWE): L-Band Frequency')
+    print('Amount of SWE 100m passes: ' + str(total_100m))
+    print('Coverage of SWE 100m passes: '+ str(total_100m/buckets))
+
+    print('Amount of SWE 200m passes: ' + str(total_200m))
+    print('Coverage of SWE 200m passes: '+ str(total_200m/buckets))
+
+    print('Amount of SWE 300m passes: ' + str(total_300m))
+    print('Coverage of SWE 300m passes: '+ str(total_300m/buckets))
+
+    print('Amount of SWE 400m passes: ' + str(total_400m))
+    print('Coverage of SWE 400m passes: '+ str(total_400m/buckets))
+
+    print('Amount of SWE 500m passes: ' + str(total_500m))
+    print('Coverage of SWE 500m passes: '+ str(total_500m/buckets))
+
+    print('Amount of SWE 1km passes: ' + str(total_1km))
+    print('Coverage of SWE 1km passes: '+ str(total_1km/buckets))
+    print('######################################################################################')
+
 def get_distance_lla(row_lat, row_long, group_lat, group_long):
     def radians(degrees):
         return degrees * np.pi / 180.0
@@ -695,7 +803,8 @@ def get_revisit_stats(specular_df, science_req):
         print('######################################################################################')
 
     elif science_req == 'SWE_L':
-        get_swe_100m(specular_df)
+        # get_swe_100m(specular_df)
+        get_swe_Lband_parallel(specular_df)
     elif science_req == 'SWE_P':
         # Get revisit
         specular_df = specular_df[abs(specular_df['Lat']) <= 60.0]
@@ -857,7 +966,7 @@ if __name__ == '__main__':
     # trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['p','p']
+    # trans_freq = ['l','l']
 
     # Get the specular points...
     # By recalculating
