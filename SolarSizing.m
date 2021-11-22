@@ -1,52 +1,16 @@
 %Michael Berthin
 %sizes solar panels per satellite
-
-%% Notes From Research 
-%(SOA_Power)
-%COTS operating temp -40 to 85 C
-%BOL efficiencies p.27, ranges from 16-31%
-%BOL Peak SA Power values on p.29
-%Battery producttable 3-3 p.35
-%Power management and dsitribution systems table 3-6 p.44
-%lithium based secondary batteries most common with primary energy source
-%being solar array (table 3-7)
-
-%(SMAD, 21.2 TABLE)
-%direct: X_e = 0.65 and X_d = 0.85 (shunt regulator operates in parallel to
-%array and shunts current from subsytem when loads or battery charging do
-%not need power, excess energy dissipated as heat)
-%peak power tracking: X_e = 0.6 amd X_d = 0.80 (optimizes incidence
-%sunlight angle and power generated, losses only due to efficiency)
-%peak power tracking requiires power converter btw array and laods
-%P_o for given junctions: Si = 202, GaAs = 253, Multi = 383
-%performance degradation per yr (%): Si = 3.75, GaAs = 2.75, Triple jun = 0.5
-%triple junction GaAs high efficiency with high cost, silicon is lower cost where radtiation not concern
-%table 21-17 for primary batteries (short missions and long term tasks like
-%battery backup)
-%table 21-18 for secondary batteries (rechargeable, used during eclipse)
-%page 654 provides info on PPT and direct systems
-
-%FROM POWER AND THERMAL CONTROL SLIDES LOOK AT EXAMPLE POWER PROFILE
-
-%% Assumptions
-% 1)Peak power tracking with regulation scheme
-% 2)Power required during daylight and eclipse are the same
-% 3)Using GaAs (gallelium arsenide) degradation (29 - 32% efficidency), use
-% lower value for conservative calculation
-% 4)Using secondary battery for rechargeability
-% 5)Theta = 0 deg so we assume the sun is normal to SA (change)
-
 %% Inputs
 P_d = 61; %daytime power load [W], how much power system uses
-T_d = 2868; %time of orbit spent in daylight [s]
+T_d = 3540; %time of orbit spent in daylight [s]
 P_e = P_d; %eclipse power load [W]
-T_e = 2868; %time of orbit spent in eclipse [s]
+T_e = 2100; %time of orbit spent in eclipse [s]
 X_d = 0.80; %efficiency of getting power from SA directly to loads
 X_e = 0.6; %Efficiency of getting power from SA to batteries then laods
-P_i = 1367; %Input solar power density [W/m^2], different at each orbit
-n = 0.29; %solar cell efficiency
+P_i = 1353.05; %Input solar power density [W/m^2], different at each orbit
+n = 0.29; %solar cell efficiency, typical for multi
 I_d = 0.72; %inherent degradation of solar cell, nominal value in SMAD table 21-14
-theta = 0; %angle btw solar cell normal and the sun, use worst case (23.5 inSMAD FiresatII)
+theta = 23.5; %angle btw solar cell normal and the sun, use worst case (23.5 inSMAD FiresatII)
 
 %% Calculations
 
@@ -55,6 +19,11 @@ P_o = P_i * n; %Output solar power density [W/m^2]
 P_bol = P_o * I_d * cosd(theta); %beginning of life power output density [W/m^2]
 L_d = (1 - 0.0275) ^ 3; %lifetime degradation of solar cells, 3 is mission lifetime in years
 P_eol = P_bol * L_d; %end of life power output density [W/m^2]
-A_SA = P_SA / P_eol; %required solar panel area [m^2]
+A_SA = P_SA / P_eol; %required solar panel area [m^2], chosen Sparkwing has .6 m^2 area
 
-m_SA = A_SA * 2.8; %estimated mass of array (use 2.8 kg/m^2 for MJ GaAs) [kg]
+num_panels = 1;%change depending on solar array output, look at Sparkwing fact sheet
+%current values give ~137 W, use 800x750 (8 string) panel
+
+m_panels = A_SA * 3.8; %estimated mass of array (for sparkwing) [kg]
+m_mechanisms = num_panels * 0.4;
+m_total = m_panels + m_mechanisms;
