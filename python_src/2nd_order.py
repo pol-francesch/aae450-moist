@@ -6,7 +6,6 @@ from functools import partial
 from scipy.spatial import KDTree
 from fqs.fqs import quartic_roots
 from preprocess import interpolation2
-from joblib import Parallel, delayed
 from sklearn.neighbors import BallTree
 
 EARTH_RADIUS = 6371.009
@@ -637,7 +636,11 @@ def get_swe_Lband_parallel(specular_df):
     num_processes = mp.cpu_count()
     # num_processes = 1
     print(num_processes)
-    retLst = Parallel(n_jobs=num_processes)(delayed(get_pass_in_grid)(group) for name, group in specular_df)
+    grouped = [group for _, group in specular_df]
+
+    pool = mp.Pool(num_processes)
+    retLst = pool.map(get_pass_in_grid, grouped)
+
     retList = np.array(retLst)
 
     total_100m = np.sum(retList[:,0])
