@@ -7,11 +7,12 @@ from scipy.spatial import KDTree
 from fqs.fqs import quartic_roots
 from preprocess import interpolation2
 from joblib import Parallel, delayed
+from sklearn.neighbors import BallTree
 
 EARTH_RADIUS = 6371.009
 
 def load_data(file_name, columns=None):
-    data = np.loadtxt(file_name, skiprows=0, usecols=columns)
+    data = np.loadtxt(file_name, skiprows=1, usecols=columns)
 
     return data
 
@@ -554,14 +555,29 @@ def get_pass_in_grid(group):
     check_500m = 0
     check_1km  = 0
 
+    if len(group) < 2:
+        return check_100m, check_200m, check_300m, check_400m, check_500m, check_1km 
+
     row_mins = []
+    group['Lat'] = np.deg2rad(group['Lat'])
+    group['Lon'] = np.deg2rad(group['Lon'])
+    temp = np.array([group['Lat'],group['Lon']]).T
+    tree = BallTree(temp, leaf_size=2, metric='haversine')
+    # exit()
 
-    for index, row in group.iterrows():
+    for _, row in group.iterrows():
         # Get distance
-        distance_from_row = get_distance_lla(row['Lat'], row['Lon'], group['Lat'].drop(index), group['Lon'].drop(index))
-        minimum = np.amin(distance_from_row)
+        # distance_from_row = get_distance_lla(row['Lat'], row['Lon'], group['Lat'].drop(index), group['Lon'].drop(index))
+        row_arr = np.array([row['Lat'], row['Lon']]).reshape((-1,2))
+        closest_elem_lst, _ = tree.query(row_arr, k=2)
 
-        row_mins = row_mins + [minimum]
+        # First element is always just this one (since d=0)
+        closest_elem = closest_elem_lst[0,1] * EARTH_RADIUS
+
+        row_mins = row_mins + [closest_elem]
+
+        if closest_elem < 0.1:
+            break
     array = np.array(row_mins)
 
     m_100 = array[array < 0.1]
@@ -617,9 +633,11 @@ def get_swe_Lband_parallel(specular_df):
     total_500m = 0
     total_1km  = 0
     buckets = grid.shape[0]
-
-    print(mp.cpu_count())
-    retLst = Parallel(n_jobs=mp.cpu_count())(delayed(get_pass_in_grid)(group) for name, group in specular_df)
+    
+    num_processes = mp.cpu_count()
+    # num_processes = 1
+    print(num_processes)
+    retLst = Parallel(n_jobs=num_processes)(delayed(get_pass_in_grid)(group) for name, group in specular_df)
     retList = np.array(retLst)
 
     total_100m = np.sum(retList[:,0])
@@ -956,17 +974,17 @@ if __name__ == '__main__':
                  6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    # rec_sma = [EARTH_RADIUS + 450]
-    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    rec_sma = [EARTH_RADIUS + 450]
+    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
     # Number of sats per constellation
     # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
     # Same order as trans_sma
-    # rec_satNum   = [1]
-    # trans_satNum = [2,2]
+    rec_satNum   = [1]
+    trans_satNum = [2,2]
 
     # Frequency of each transmitter constellation
-    # trans_freq = ['l','l']
+    trans_freq = ['l','l']
 
     # Get the specular points...
     # By recalculating
@@ -991,12 +1009,12 @@ if __name__ == '__main__':
     # SSM
     desired_freq = ['l']        
     science = 'SSM'
-    get_revisit_stats(specular_df_l_band, science)
+    # get_revisit_stats(specular_df_l_band, science)
 
     # FTS
     desired_freq = ['l']        
     science = 'FTS'
-    get_revisit_stats(specular_df_l_band, science)
+    # get_revisit_stats(specular_df_l_band, science)
 
     # SWE P band
     desired_freq = ['p']        
