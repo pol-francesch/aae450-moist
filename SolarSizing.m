@@ -1,7 +1,7 @@
 %Michael Berthin
 %sizes solar panels per satellite
 %% Inputs
-P_d = 61; %daytime power load [W], how much power system uses
+P_d = 87.3; %daytime power load [W], how much power system uses
 T_d = 3540; %time of orbit spent in daylight [s]
 P_e = P_d; %eclipse power load [W]
 T_e = 2100; %time of orbit spent in eclipse [s]
