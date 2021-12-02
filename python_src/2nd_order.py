@@ -1,11 +1,8 @@
-from operator import concat
-from numpy.lib.npyio import load
 import pandas as pd 
 import numpy as np
 from Alhazen_Plotemy import branchdeducing_twofinite
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from scipy import interpolate
 
 EARTH_RADIUS = 6371.0
 
@@ -53,8 +50,7 @@ def get_spec(rec, trans):
     return spec*EARTH_RADIUS
 
 def load_data(file_name, columns=None):
-    # data = pd.read_csv(file_name, delim_whitespace=True)
-    data = np.loadtxt(file_name, skiprows=1, usecols=columns)
+    data = np.loadtxt(file_name, skiprows=0, usecols=columns)
 
     return data
 
@@ -257,7 +253,7 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 temp_df = pd.DataFrame(columns=['Time', 'Lat', 'Lon', 'trans_lat', 'trans_lon', 'rec_lat', 'rec_lon'])
                 temp_df['Time'] = np.repeat(time/86400, repeat)         # in days
                 temp_df['Lat'] = lat_sp.reshape((-1,1))
-                temp_df['Lon'] = lat_sp.reshape((-1,1))
+                temp_df['Lon'] = lon_sp.reshape((-1,1))
                 temp_df['trans_lat'] = transmitters[:,0,:].ravel()
                 temp_df['trans_lon'] = transmitters[:,1,:].ravel()
                 temp_df['rec_lat'] = np.repeat(np.radians(receiver_shell[:, k*2:k*2+1]), repeat)
@@ -317,7 +313,9 @@ def get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, 
                 temp_df['theta3'] = np.abs(np.arccos(temp_df['dot_rt_r']/(temp_df['mag_r']*temp_df['mag_rt']))) * 180.0 / np.pi
                 
                 # Inclination angle is always < 60 deg (theta 1)
-                temp_df = temp_df[temp_df['theta1'] <= 180.0]
+                # print(temp_df)
+                temp_df = temp_df[temp_df['theta1'] <= 60.0]
+                # print(temp_df)
 
                 # Remove extra columns
                 keep    = ['Time', 'Lat', 'Lon', 'theta2', 'theta3']
@@ -427,26 +425,6 @@ def get_distance_lla(row_lat, row_long, group_lat, group_long):
     # calculate the result
     return(c * EARTH_RADIUS)
 
-def interpolation(specular_df):
-
-    # Generate time list (in days) of interval 1 second
-    gran_time = np.linspace(0, 15, 15*24*3600)
-
-    time = round(specular_df['Time'])
-    lat = specular_df['Lat']
-    lon = specular_df['Lon']
-
-    lat_inter = interpolate.interp1d(time, lat, kind='linear')
-    lon_inter = interpolate.interp1d(time, lon, kind='linear')
-    
-    specular_df_granular = pd.DataFrame(columns=['Time', 'Lat', 'Lon'])
-
-    specular_df_granular['Time'] = gran_time
-    specular_df_granular['Lat'] = lat_inter(gran_time)
-    specular_df_granular['Lon'] = lon_inter(gran_time)
-
-    return specular_df_granular
-
 def apply_science_angles(specular_df, science_req='SSM'):
     if science_req == 'SSM' or science_req == 'FTS' or science_req == 'SWE_L':
         # this one is L-band
@@ -505,23 +483,75 @@ def get_revisit_stats(specular_df, science_req):
 if __name__ == '__main__':
     # Preliminary information
     # File where the data is stored from GMAT
-    filename = '/home/polfr/Documents/ReportFile1_TestforPol.txt'
+    filename = '/home/polfr/Downloads/15day_2orbit_blueTeam.txt'
+    filename = '/home/polfr/Documents/dummy_data/10_18_2021_GMAT/15day_15s_2orbit_blueTeam.txt'
 
     #Simons file path
     # filename = '/Users/michael/Desktop/ReportFile1_TestforPol.txt'
+    
+    # Receiver information
+    rec_sma = [EARTH_RADIUS+350, EARTH_RADIUS+550]
+    rec_satNum = [6,6]
+
+    # Transmitter information
+    trans_satNum = [12, 12,\
+                    2,\
+                    13, 14,\
+                    10, 10, 10,\
+                    11, 11, 10, 10, 10, 10, 10,\
+                    3,\
+                    5,\
+                    12, 11,\
+                    1,\
+                    12,\
+                    11, 11, 10, 10, 10, 10, 10, 10, 10,\
+                    3,\
+                    1,\
+                    12,\
+                    12]
+    trans_freq = ['l', 'l',\
+                  'l',\
+                  'l', 'l',\
+                  'l', 'l', 'l',\
+                  'l', 'l', 'l', 'l', 'l', 'l', 'l',\
+                  'l',\
+                  'p',\
+                  'vhf', 'vhf',\
+                  'vhf',\
+                  'vhf',\
+                  'vhf', 'vhf', 'vhf', 'vhf', 'vhf', 'vhf', 'vhf', 'vhf', 'vhf',\
+                  'vhf',\
+                  'vhf',\
+                  'vhf',\
+                  'vhf']
+    trans_sma = [29600.11860223169, 29600.11860223169,\
+                 27977.504096425982,\
+                 25507.980889761526, 25507.980889761526,\
+                 26560.219967218538, 26560.219967218538, 26560.219967218538,\
+                 7154.894323517232, 7154.894323517232, 7154.894323517232, 7154.894323517232, 7154.894323517232, 7154.894323517232, 7154.894323517232,\
+                 7032.052725011441,\
+                 42164.60598791122,\
+                 7159.806603357321, 7159.806603357321,\
+                 7169.733155278799,\
+                 7086.970861454123,\
+                 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556, 6899.35020845556,\
+                 6954.536583827208,\
+                 6737.429588978587,\
+                 6904.52413627514,\
+                 6872.673000785395]
 
     # SMA of transmitter constellations & recivers (SMA of transmitters should be in order of appearance in GMAT)
-    rec_sma = [EARTH_RADIUS + 450]
-    trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
+    # rec_sma = [EARTH_RADIUS + 450]
+    # trans_sma = [EARTH_RADIUS+35786, EARTH_RADIUS+35786]
 
-    # Number of sats per constellation
-    # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
-    # Same order as trans_sma
-    rec_satNum   = [1]
-    trans_satNum = [2,2]
+    # # Number of sats per constellation
+    # # Assumes 2 columns per sat (lat, lon); assumes our satellites go first
+    # # Same order as trans_sma
+    # rec_satNum   = [1]
+    # trans_satNum = [2,2]
 
-    # Frequency of each transmitter constellation
-    trans_freq = ['p','p']
+    # # Frequency of each transmitter constellation
+    # trans_freq = ['p','p']
 
     # SSM
     desired_freq = ['l']        
@@ -529,15 +559,15 @@ if __name__ == '__main__':
     specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
     get_revisit_stats(specular_df, science)
 
-    # RZSM
-    desired_freq = ['p', 'vhf']        
-    science = 'RZSM'
-    specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    get_revisit_stats(specular_df, science)
-
     # FTS
     desired_freq = ['l']        
     science = 'FTS'
+    # specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
+    get_revisit_stats(specular_df, science)
+
+    # RZSM
+    desired_freq = ['p', 'vhf']        
+    science = 'RZSM'
     specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
     get_revisit_stats(specular_df, science)
 
@@ -550,6 +580,6 @@ if __name__ == '__main__':
     # SWE L band
     desired_freq = ['l']        
     science = 'SWE_L'
-    specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
-    get_revisit_stats(specular_df, science)
+    # specular_df = get_specular_points(filename, rec_sma, trans_sma, rec_satNum, trans_satNum, trans_freq, desired_freq)
+    # get_revisit_stats(specular_df, science)
     
