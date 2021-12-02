@@ -1,0 +1,249 @@
+%----------------------------------------
+%---------- Spacecraft
+%----------------------------------------
+
+Create Spacecraft MOIST_rec_0_0;
+GMAT MOIST_rec_0_0.Id = '1';
+GMAT MOIST_rec_0_0.DateFormat = UTCGregorian;
+GMAT MOIST_rec_0_0.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_0_0.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_0_0.DisplayStateType = Keplerian;
+GMAT MOIST_rec_0_0.SMA = 7071.0;
+GMAT MOIST_rec_0_0.ECC = 0;
+GMAT MOIST_rec_0_0.INC = 80;
+GMAT MOIST_rec_0_0.RAAN = 0;
+GMAT MOIST_rec_0_0.AOP = 0;
+GMAT MOIST_rec_0_0.TA = 0;
+
+Create Spacecraft MOIST_rec_0_1;
+GMAT MOIST_rec_0_1.Id = '2';
+GMAT MOIST_rec_0_1.DateFormat = UTCGregorian;
+GMAT MOIST_rec_0_1.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_0_1.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_0_1.DisplayStateType = Keplerian;
+GMAT MOIST_rec_0_1.SMA = 7071.0;
+GMAT MOIST_rec_0_1.ECC = 0;
+GMAT MOIST_rec_0_1.INC = 80;
+GMAT MOIST_rec_0_1.RAAN = 0;
+GMAT MOIST_rec_0_1.AOP = 0;
+GMAT MOIST_rec_0_1.TA = 36;
+
+Create Spacecraft MOIST_rec_0_2;
+GMAT MOIST_rec_0_2.Id = '3';
+GMAT MOIST_rec_0_2.DateFormat = UTCGregorian;
+GMAT MOIST_rec_0_2.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_0_2.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_0_2.DisplayStateType = Keplerian;
+GMAT MOIST_rec_0_2.SMA = 7071.0;
+GMAT MOIST_rec_0_2.ECC = 0;
+GMAT MOIST_rec_0_2.INC = 80;
+GMAT MOIST_rec_0_2.RAAN = 0;
+GMAT MOIST_rec_0_2.AOP = 0;
+GMAT MOIST_rec_0_2.TA = 72;
+
+Create Spacecraft MOIST_rec_0_3;
+GMAT MOIST_rec_0_3.Id = '4';
+GMAT MOIST_rec_0_3.DateFormat = UTCGregorian;
+GMAT MOIST_rec_0_3.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_0_3.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_0_3.DisplayStateType = Keplerian;
+GMAT MOIST_rec_0_3.SMA = 7071.0;
+GMAT MOIST_rec_0_3.ECC = 0;
+GMAT MOIST_rec_0_3.INC = 80;
+GMAT MOIST_rec_0_3.RAAN = 0;
+GMAT MOIST_rec_0_3.AOP = 0;
+GMAT MOIST_rec_0_3.TA = 108;
+
+Create Spacecraft MOIST_rec_0_4;
+GMAT MOIST_rec_0_4.Id = '5';
+GMAT MOIST_rec_0_4.DateFormat = UTCGregorian;
+GMAT MOIST_rec_0_4.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_0_4.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_0_4.DisplayStateType = Keplerian;
+GMAT MOIST_rec_0_4.SMA = 7071.0;
+GMAT MOIST_rec_0_4.ECC = 0;
+GMAT MOIST_rec_0_4.INC = 80;
+GMAT MOIST_rec_0_4.RAAN = 0;
+GMAT MOIST_rec_0_4.AOP = 0;
+GMAT MOIST_rec_0_4.TA = 144;
+
+Create Spacecraft MOIST_rec_0_5;
+GMAT MOIST_rec_0_5.Id = '6';
+GMAT MOIST_rec_0_5.DateFormat = UTCGregorian;
+GMAT MOIST_rec_0_5.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_0_5.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_0_5.DisplayStateType = Keplerian;
+GMAT MOIST_rec_0_5.SMA = 7071.0;
+GMAT MOIST_rec_0_5.ECC = 0;
+GMAT MOIST_rec_0_5.INC = 80;
+GMAT MOIST_rec_0_5.RAAN = 0;
+GMAT MOIST_rec_0_5.AOP = 0;
+GMAT MOIST_rec_0_5.TA = 180;
+
+Create Spacecraft MOIST_rec_0_6;
+GMAT MOIST_rec_0_6.Id = '7';
+GMAT MOIST_rec_0_6.DateFormat = UTCGregorian;
+GMAT MOIST_rec_0_6.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_0_6.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_0_6.DisplayStateType = Keplerian;
+GMAT MOIST_rec_0_6.SMA = 7071.0;
+GMAT MOIST_rec_0_6.ECC = 0;
+GMAT MOIST_rec_0_6.INC = 80;
+GMAT MOIST_rec_0_6.RAAN = 0;
+GMAT MOIST_rec_0_6.AOP = 0;
+GMAT MOIST_rec_0_6.TA = 216;
+
+Create Spacecraft MOIST_rec_0_7;
+GMAT MOIST_rec_0_7.Id = '8';
+GMAT MOIST_rec_0_7.DateFormat = UTCGregorian;
+GMAT MOIST_rec_0_7.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_0_7.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_0_7.DisplayStateType = Keplerian;
+GMAT MOIST_rec_0_7.SMA = 7071.0;
+GMAT MOIST_rec_0_7.ECC = 0;
+GMAT MOIST_rec_0_7.INC = 80;
+GMAT MOIST_rec_0_7.RAAN = 0;
+GMAT MOIST_rec_0_7.AOP = 0;
+GMAT MOIST_rec_0_7.TA = 252;
+
+Create Spacecraft MOIST_rec_0_8;
+GMAT MOIST_rec_0_8.Id = '9';
+GMAT MOIST_rec_0_8.DateFormat = UTCGregorian;
+GMAT MOIST_rec_0_8.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_0_8.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_0_8.DisplayStateType = Keplerian;
+GMAT MOIST_rec_0_8.SMA = 7071.0;
+GMAT MOIST_rec_0_8.ECC = 0;
+GMAT MOIST_rec_0_8.INC = 80;
+GMAT MOIST_rec_0_8.RAAN = 0;
+GMAT MOIST_rec_0_8.AOP = 0;
+GMAT MOIST_rec_0_8.TA = 288;
+
+Create Spacecraft MOIST_rec_0_9;
+GMAT MOIST_rec_0_9.Id = '10';
+GMAT MOIST_rec_0_9.DateFormat = UTCGregorian;
+GMAT MOIST_rec_0_9.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_0_9.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_0_9.DisplayStateType = Keplerian;
+GMAT MOIST_rec_0_9.SMA = 7071.0;
+GMAT MOIST_rec_0_9.ECC = 0;
+GMAT MOIST_rec_0_9.INC = 80;
+GMAT MOIST_rec_0_9.RAAN = 0;
+GMAT MOIST_rec_0_9.AOP = 0;
+GMAT MOIST_rec_0_9.TA = 324;
+
+Create Spacecraft MOIST_rec_1_0;
+GMAT MOIST_rec_1_0.Id = '1';
+GMAT MOIST_rec_1_0.DateFormat = UTCGregorian;
+GMAT MOIST_rec_1_0.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_1_0.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_1_0.DisplayStateType = Keplerian;
+GMAT MOIST_rec_1_0.SMA = 7471.0;
+GMAT MOIST_rec_1_0.ECC = 0;
+GMAT MOIST_rec_1_0.INC = 63.5;
+GMAT MOIST_rec_1_0.RAAN = 0;
+GMAT MOIST_rec_1_0.AOP = 0;
+GMAT MOIST_rec_1_0.TA = 0;
+
+Create Spacecraft MOIST_rec_1_1;
+GMAT MOIST_rec_1_1.Id = '2';
+GMAT MOIST_rec_1_1.DateFormat = UTCGregorian;
+GMAT MOIST_rec_1_1.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_1_1.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_1_1.DisplayStateType = Keplerian;
+GMAT MOIST_rec_1_1.SMA = 7471.0;
+GMAT MOIST_rec_1_1.ECC = 0;
+GMAT MOIST_rec_1_1.INC = 63.5;
+GMAT MOIST_rec_1_1.RAAN = 0;
+GMAT MOIST_rec_1_1.AOP = 0;
+GMAT MOIST_rec_1_1.TA = 60;
+
+Create Spacecraft MOIST_rec_1_2;
+GMAT MOIST_rec_1_2.Id = '3';
+GMAT MOIST_rec_1_2.DateFormat = UTCGregorian;
+GMAT MOIST_rec_1_2.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_1_2.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_1_2.DisplayStateType = Keplerian;
+GMAT MOIST_rec_1_2.SMA = 7471.0;
+GMAT MOIST_rec_1_2.ECC = 0;
+GMAT MOIST_rec_1_2.INC = 63.5;
+GMAT MOIST_rec_1_2.RAAN = 0;
+GMAT MOIST_rec_1_2.AOP = 0;
+GMAT MOIST_rec_1_2.TA = 120;
+
+Create Spacecraft MOIST_rec_1_3;
+GMAT MOIST_rec_1_3.Id = '4';
+GMAT MOIST_rec_1_3.DateFormat = UTCGregorian;
+GMAT MOIST_rec_1_3.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_1_3.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_1_3.DisplayStateType = Keplerian;
+GMAT MOIST_rec_1_3.SMA = 7471.0;
+GMAT MOIST_rec_1_3.ECC = 0;
+GMAT MOIST_rec_1_3.INC = 63.5;
+GMAT MOIST_rec_1_3.RAAN = 0;
+GMAT MOIST_rec_1_3.AOP = 0;
+GMAT MOIST_rec_1_3.TA = 180;
+
+Create Spacecraft MOIST_rec_1_4;
+GMAT MOIST_rec_1_4.Id = '5';
+GMAT MOIST_rec_1_4.DateFormat = UTCGregorian;
+GMAT MOIST_rec_1_4.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_1_4.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_1_4.DisplayStateType = Keplerian;
+GMAT MOIST_rec_1_4.SMA = 7471.0;
+GMAT MOIST_rec_1_4.ECC = 0;
+GMAT MOIST_rec_1_4.INC = 63.5;
+GMAT MOIST_rec_1_4.RAAN = 0;
+GMAT MOIST_rec_1_4.AOP = 0;
+GMAT MOIST_rec_1_4.TA = 240;
+
+Create Spacecraft MOIST_rec_1_5;
+GMAT MOIST_rec_1_5.Id = '6';
+GMAT MOIST_rec_1_5.DateFormat = UTCGregorian;
+GMAT MOIST_rec_1_5.Epoch = '14 Oct 2021 00:00:00';
+GMAT MOIST_rec_1_5.CoordinateSystem = EarthMJ2000Eq;
+GMAT MOIST_rec_1_5.DisplayStateType = Keplerian;
+GMAT MOIST_rec_1_5.SMA = 7471.0;
+GMAT MOIST_rec_1_5.ECC = 0;
+GMAT MOIST_rec_1_5.INC = 63.5;
+GMAT MOIST_rec_1_5.RAAN = 0;
+GMAT MOIST_rec_1_5.AOP = 0;
+GMAT MOIST_rec_1_5.TA = 300;
+
+%----------------------------------------
+%---------- Propagators
+%----------------------------------------
+
+Create Propagator DefaultProp;
+GMAT DefaultProp.FM = InternalODEModel;
+GMAT DefaultProp.Type = RungeKutta89;
+GMAT DefaultProp.InitialStepSize = 1;
+GMAT DefaultProp.Accuracy = 1e-07;
+GMAT DefaultProp.MinStep = 60;
+GMAT DefaultProp.MaxStep = 60;
+GMAT DefaultProp.MaxStepAttempts = 50;
+GMAT DefaultProp.StopIfAccuracyIsViolated = true;
+
+%----------------------------------------
+%---------- Subscribers
+%----------------------------------------
+
+Create ReportFile ReportFile_recievers;
+GMAT ReportFile_recievers.Filename = 'ReportFile_recievers.txt';
+GMAT ReportFile_recievers.Precision = 10;
+GMAT ReportFile_recievers.Add = {MOIST_rec_0_0.ElapsedSecs, MOIST_rec_0_0.Earth.Latitude, MOIST_rec_0_0.Earth.Longitude, MOIST_rec_0_1.Earth.Latitude, MOIST_rec_0_1.Earth.Longitude, MOIST_rec_0_2.Earth.Latitude, MOIST_rec_0_2.Earth.Longitude, MOIST_rec_0_3.Earth.Latitude, MOIST_rec_0_3.Earth.Longitude, MOIST_rec_0_4.Earth.Latitude, MOIST_rec_0_4.Earth.Longitude, MOIST_rec_0_5.Earth.Latitude, MOIST_rec_0_5.Earth.Longitude, MOIST_rec_0_6.Earth.Latitude, MOIST_rec_0_6.Earth.Longitude, MOIST_rec_0_7.Earth.Latitude, MOIST_rec_0_7.Earth.Longitude, MOIST_rec_0_8.Earth.Latitude, MOIST_rec_0_8.Earth.Longitude, MOIST_rec_0_9.Earth.Latitude, MOIST_rec_0_9.Earth.Longitude, MOIST_rec_1_0.Earth.Latitude, MOIST_rec_1_0.Earth.Longitude, MOIST_rec_1_1.Earth.Latitude, MOIST_rec_1_1.Earth.Longitude, MOIST_rec_1_2.Earth.Latitude, MOIST_rec_1_2.Earth.Longitude, MOIST_rec_1_3.Earth.Latitude, MOIST_rec_1_3.Earth.Longitude, MOIST_rec_1_4.Earth.Latitude, MOIST_rec_1_4.Earth.Longitude, MOIST_rec_1_5.Earth.Latitude, MOIST_rec_1_5.Earth.Longitude, };
+GMAT ReportFile_recievers.WriteHeaders = false;
+GMAT ReportFile_recievers.LeftJustify = On;
+GMAT ReportFile_recievers.ZeroFill = On;
+GMAT ReportFile_recievers.FixedWidth = true;
+GMAT ReportFile_recievers.Delimiter = ' ';
+GMAT ReportFile_recievers.ColumnWidth = 23;
+GMAT ReportFile_recievers.WriteReport = true;
+
+%----------------------------------------
+%---------- Mission Sequence
+%----------------------------------------
+
+BeginMissionSequence;
+Propagate DefaultProp(MOIST_rec_0_0) DefaultProp(MOIST_rec_0_1) DefaultProp(MOIST_rec_0_2) DefaultProp(MOIST_rec_0_3) DefaultProp(MOIST_rec_0_4) DefaultProp(MOIST_rec_0_5) DefaultProp(MOIST_rec_0_6) DefaultProp(MOIST_rec_0_7) DefaultProp(MOIST_rec_0_8) DefaultProp(MOIST_rec_0_9) DefaultProp(MOIST_rec_1_0) DefaultProp(MOIST_rec_1_1) DefaultProp(MOIST_rec_1_2) DefaultProp(MOIST_rec_1_3) DefaultProp(MOIST_rec_1_4) DefaultProp(MOIST_rec_1_5) {MOIST_rec_0_0.ElapsedSecs = 8640000, MOIST_rec_0_1.ElapsedSecs = 8640000, MOIST_rec_0_2.ElapsedSecs = 8640000, MOIST_rec_0_3.ElapsedSecs = 8640000, MOIST_rec_0_4.ElapsedSecs = 8640000, MOIST_rec_0_5.ElapsedSecs = 8640000, MOIST_rec_0_6.ElapsedSecs = 8640000, MOIST_rec_0_7.ElapsedSecs = 8640000, MOIST_rec_0_8.ElapsedSecs = 8640000, MOIST_rec_0_9.ElapsedSecs = 8640000, MOIST_rec_1_0.ElapsedSecs = 8640000, MOIST_rec_1_1.ElapsedSecs = 8640000, MOIST_rec_1_2.ElapsedSecs = 8640000, MOIST_rec_1_3.ElapsedSecs = 8640000, MOIST_rec_1_4.ElapsedSecs = 8640000, MOIST_rec_1_5.ElapsedSecs = 8640000, };
+
