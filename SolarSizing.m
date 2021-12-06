@@ -1,7 +1,7 @@
 %Michael Berthin
 %sizes solar panels per satellite
 %% Inputs
-P_d = 87.3; %daytime power load [W], how much power system uses
+P_d = 127; %daytime power load [W], how much power system uses
 T_d = 3540; %time of orbit spent in daylight [s]
 P_e = P_d; %eclipse power load [W]
 T_e = 2100; %time of orbit spent in eclipse [s]
@@ -27,3 +27,4 @@ num_panels = 1;%change depending on solar array output, look at Sparkwing fact s
 m_panels = A_SA * 3.8; %estimated mass of array (for sparkwing) [kg]
 m_mechanisms = num_panels * 0.4;
 m_total = m_panels + m_mechanisms;
+Array_power_req = P_bol * A_SA
