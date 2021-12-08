@@ -40,17 +40,17 @@ def getTrueAnomaly(ecc, EA):
 if __name__ == '__main__':
     
     files = ['Inp_TLE_Galileo.txt','Inp_TLE_Glonass.txt','Inp_TLE_GPS.txt','Inp_TLE_Iridium.txt','Inp_TLE_MUOS.txt','Inp_TLE_ORBCOMM.txt','Inp_TLE_SWARM.txt']
-    days = 15
-    step_size = 15
+    days = 1
+    step_size = 60
     enable_recievers = 1
     rec_shells = 2
-    num_recievers = [8, 5]
+    num_recievers = [7, 5]
     alt = [350, 550]
     Inc = [80, 63.5]
     Ecc = 0
     RAAN = 0
     AoP = 0
-    TA = [[0, 45, 90, 135, 180, 225, 270, 315],[0, 72, 144, 216, 288]]
+    TA = [[0, 51.429, 102.858, 154.287, 205.716, 257.145, 308.574],[0, 72, 144, 216, 288]]
     satNames = []
     Input_Epoch = '14 Oct 2021 00:00:00'
     Input_MJD = '29501.5'
