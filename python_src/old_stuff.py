@@ -1,6 +1,6 @@
 import pandas as pd 
 import numpy as np
-from Alhazen_Plotemy import branchdeducing_twofinite
+from python_src.OLD.Alhazen_Plotemy import branchdeducing_twofinite
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -520,5 +520,166 @@ def get_specular_points_single_trans_const(transmitters, trans_sma, time, recive
     print(mp.current_process().name + ' has finished working.')
 
     return spec_df
+
+def get_spec(recx, recy, recz, transx, transy, transz):
+    '''
+        Given reciever and transmitter location, return specular point.
+        Return empty array if no specular point is found.
+        Reciever and transmitter locations are in the order of 1.
+
+        Source: https://www.geometrictools.com/Documentation/SphereReflections.pdf
+    '''
+    global EARTH_RADIUS
+
+    # Break down the inputs
+    rec = np.array([recx, recy, recz]) / EARTH_RADIUS
+    trans = np.array([transx, transy, transz]) / EARTH_RADIUS
+
+    # Prework - dot products
+    a = np.sum(rec*rec)
+    b = np.sum(rec*trans)
+    c = np.sum(trans*trans)
+
+    # Step 1
+    coeffs = [4*c*(a*c-b**2), -4*(a*c-b**2), a+2*b+c-4*a*c, 2*(a-b), a-1]
+    roots = np.roots(coeffs)
+    y = roots[roots > 0]
+    
+    if y.size == 0:
+        return None
+    
+    # Step 2
+    x = (-2*c*y**2 + y + 1) / (2*b*y + 1)
+
+    if x[x > 0].size == 0:
+        return None
+    i = np.argwhere(x > 0)[0][0]
+
+    spec = (x[i]*rec + y[i]*trans)*EARTH_RADIUS
+
+    return spec[0], spec[1], spec[2]
+
+def get_swe_100m(specular_df):
+    global EARTH_RADIUS
+
+    print('Beginning SWE 100m revisit calculations')
+    # Generate grid and get indeces for each specular point that matches grid element
+    specular_df = specular_df[abs(specular_df['Lat']) <= 70.0]
+
+    grid = create_earth_grid(resolution=100, max_lat=70)
+    points = np.c_[specular_df['Lat'], specular_df['Lon']]
+    tree = KDTree(grid)
+    _, indices = tree.query(points)
+
+    # Get estimated latitude and longitude based on resolution
+    specular_df['approx_LatSp'] = grid[indices, 0]
+    specular_df['approx_LonSp'] = grid[indices, 1]
+
+    # Calculate time difference
+    # specular_df.sort_values(by=['approx_LatSp', 'approx_LonSp', 'Time'], inplace=True)
+    specular_df = specular_df.groupby(['approx_LatSp', 'approx_LonSp'])
+
+    total_100m = 0
+    total_200m = 0
+    total_300m = 0
+    total_400m = 0
+    total_500m = 0
+    total_1km  = 0
+    buckets = grid.shape[0]
+
+    with tqdm(total=specular_df.ngroups) as progress_bar:
+        for _, group in specular_df:
+            progress_bar.update(1)
+            row_mins = []
+            for index, row in group.iterrows():
+                # Get distance
+                distance_from_row = get_distance_lla(row['Lat'], row['Lon'], group['Lat'].drop(index), group['Lon'].drop(index))
+                minimum = np.amin(distance_from_row)
+
+                row_mins = row_mins + [minimum]
+            array = np.array(row_mins)
+
+            m_100 = array[array < 0.1]
+            m_200 = array[array < 0.2]
+            m_300 = array[array < 0.3]
+            m_400 = array[array < 0.4]
+            m_500 = array[array < 0.5]
+            km_1  = array[array < 1.0]
+
+            if m_100.size > 0:
+                total_100m = total_100m + 1
+            if m_200.size > 0:
+                total_200m = total_200m + 1
+            if m_300.size > 0:
+                total_300m = total_300m + 1
+            if m_400.size > 0:
+                total_400m = total_400m + 1
+            if m_500.size > 0:
+                total_500m = total_500m + 1    
+            if km_1.size > 0:
+                total_1km = total_1km + 1     
+    
+    print('######################################################################################')
+    print('Snow-Water Equivalent (SWE): L-Band Frequency')
+    print('Amount of SWE 100m passes: ' + str(total_100m))
+    print('Coverage of SWE 100m passes: '+ str(total_100m/buckets))
+
+    print('Amount of SWE 200m passes: ' + str(total_200m))
+    print('Coverage of SWE 200m passes: '+ str(total_200m/buckets))
+
+    print('Amount of SWE 300m passes: ' + str(total_300m))
+    print('Coverage of SWE 300m passes: '+ str(total_300m/buckets))
+
+    print('Amount of SWE 400m passes: ' + str(total_400m))
+    print('Coverage of SWE 400m passes: '+ str(total_400m/buckets))
+
+    print('Amount of SWE 500m passes: ' + str(total_500m))
+    print('Coverage of SWE 500m passes: '+ str(total_500m/buckets))
+
+    print('Amount of SWE 1km passes: ' + str(total_1km))
+    print('Coverage of SWE 1km passes: '+ str(total_1km/buckets))
+    print('######################################################################################')
+
+def get_distance_lla(row_lat, row_long, group_lat, group_long):
+    def radians(degrees):
+        return degrees * np.pi / 180.0
+    
+    global EARTH_RADIUS
+    lon1 = radians(group_long)
+    lon2 = radians(row_long)
+    lat1 = radians(group_lat)
+    lat2 = radians(row_lat)
+      
+    # Haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
+ 
+    c = 2 * np.arcsin(np.sqrt(a))
+      
+    # calculate the result
+    return(c * EARTH_RADIUS)
+
+def save_specular(specular_df, savefile_start, savefile_end):
+    '''
+        Saves a specular point dataframe with the given name and directory
+    '''
+    savefilename = savefile_start + savefile_end
+    specular_df.to_csv(savefilename, header=None, index=None, sep=' ', mode='w')
+
+def load_specular(filename):
+    '''
+        Loads specular DF that was generated using this script
+    '''
+    column_names = ['Time', 'Lat', 'Lon', 'theta2', 'theta3']
+
+    try:
+        data = pd.read_csv(filename, sep=" ", header=None)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame(columns=column_names)
+
+    data.columns = column_names
+
+    return data
 
 

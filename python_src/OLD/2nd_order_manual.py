@@ -1,6 +1,6 @@
 import numpy as np 
 import pandas as pd
-from Alhazen_Plotemy import branchdeducing_twofinite
+from python_src.OLD.Alhazen_Plotemy import branchdeducing_twofinite
 from tqdm import tqdm
 
 # This is not a manual for how to do 2nd order
