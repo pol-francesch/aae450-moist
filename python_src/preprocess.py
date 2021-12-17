@@ -7,22 +7,34 @@ def load_data(file_name, rows=0):
 
     return data
 
-def interpolation(transmitters, dt=1, days=15):
+def interpolation(transmitters, dt=1, days=15, dt_in=False):
     # Generate time list (in days) of interval 1 second
-    gran_time = np.linspace(0, days, int(days*24*3600 / dt))
+    gran_time = np.linspace(0, days*24*3600, int(days*24*3600 / dt))
 
-    time = transmitters[:,0]
+    if dt_in:
+        time = np.linspace(0, days*24*3600-dt_in, int(days*24*3600 / dt_in)-1)
+    else:
+        time = transmitters[:,0]
+    
     transmitters = np.delete(transmitters,0,axis=1)
     columns = transmitters.transpose()
     interpolated = [gran_time]
 
     for col in tqdm(columns):
-        temp = interpolate.interp1d(time, col, kind='linear')
+        temp = interpolate.interp1d(time, col, kind='linear', fill_value='extrapolate')
         interpolated = interpolated + [temp(gran_time)]
     
     interpolated = np.array(interpolated).transpose()
 
     return interpolated
+
+def interpolation2(xold, yold, dt=1, days=15):
+    # Generate time list (in days) of interval 1 second
+    gran_time = np.linspace(0, days*24*3600, int(days*24*3600 / dt))
+
+    temp = interpolate.interp1d(xold, yold.T, kind='linear', fill_value='extrapolate')
+
+    return gran_time, temp(gran_time).T   
 
 def reorder_transmitters(transmitters, sat_shell_assign, shell_num_sats):
     '''
@@ -56,6 +68,24 @@ def combine_rec_trans(receivers, transmitters):
 
     return combined
 
+def get_interpolated_rec_trans(receivers_file, transmitters_file, sat_shell_assign, shell_num_sats, days=15, dt=2, dt_in=None):
+    # Get recievers, interpolate
+    print('Getting & interpolating receivers')
+    receivers = load_data(receivers_file, rows=0)
+    receivers = interpolation(receivers, dt=dt, days=days)
+
+    # Get transmitters, reorganize them, and interpolate
+    print('Getting & interpolating transmitters')
+    transmitters = load_data(transmitters_file, rows=1)
+
+    transmitters = reorder_transmitters(transmitters, sat_shell_assign, shell_num_sats)
+    transmitters = interpolation(transmitters, dt=dt, days=days, dt_in=dt_in)
+
+    # Combine
+    combined = combine_rec_trans(receivers, transmitters)
+
+    return combined
+
 if __name__ == '__main__':
     shell_num = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     shell_type = ['GalileoE11', 'GalileoE18', 'GlonassCOSMOS2425', 'GPSPRN13', 'Iridium106', 'Iridium176',\
@@ -77,25 +107,25 @@ if __name__ == '__main__':
                 15, 15, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,\
                 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11]
     
+    # Get recievers, interpolate
+    print('Receivers')
+    receivers_file = '/home/polfr/Documents/dummy_data/ReportFile_recievers_15sec_15day.txt'
+    receivers = load_data(receivers_file, rows=0)
+    print(receivers.shape)
+    receivers = interpolation(receivers, dt=5, days=15)
+    print(receivers.shape)
+
     # Get transmitters, reorganize them, and interpolate
     print('Transmitters')
-    transmitters_file = '/home/polfr/Documents/dummy_data/10_18_2021_GMAT/ReportFile_transmitters.txt'
+    transmitters_file = '/home/polfr/Documents/dummy_data/ReportFile_transmitters.txt'
     transmitters = load_data(transmitters_file, rows=1)
 
     transmitters = reorder_transmitters(transmitters, sat_shell_assign, shell_num_sats)
-    transmitters = interpolation(transmitters, dt=15, days=15)
+    transmitters = interpolation(transmitters, dt=5, days=15, dt_in=60)
 
     print(transmitters.shape)
 
-    # Get recievers, interpolate
-    print('Receivers')
-    receivers_file = '/home/polfr/Documents/dummy_data/10_18_2021_GMAT/ReportFile_recievers_15sec_15day.txt'
-    receivers = load_data(receivers_file, rows=0)
-    print(receivers.shape)
-    receivers = interpolation(receivers, dt=15, days=15)
-    print(receivers.shape)
-
     # Combine and save files
-    filename = '/home/polfr/Documents/dummy_data/10_18_2021_GMAT/15day_15s_2orbit_blueTeam.txt'
+    filename = '/home/polfr/Documents/dummy_data/15day_5s_orbit_blueTeam.txt'
     combined = combine_rec_trans(receivers, transmitters)
     np.savetxt(filename, combined)
